@@ -1,0 +1,136 @@
+//
+//  BenchSectionView.swift
+//  SubTimer
+//
+//  Created by SubTimer on 2/13/26.
+//
+
+import SwiftUI
+
+/// Component for displaying the bench players section
+struct BenchSectionView: View {
+  // MARK: - Properties
+
+  let players: [Player]
+  let activePlayersCount: Int
+  let maxActiveCount: Int
+  let onPlayerTap: (Player) -> Void
+  let onActivatePlayer: (Player) -> Void
+
+  // MARK: - Computed Properties
+
+  private var canActivate: Bool {
+    activePlayersCount < maxActiveCount
+  }
+
+  // MARK: - Body
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      // Header
+      HStack {
+        Label("Bench", systemImage: "person.2")
+          .font(.title3)
+          .bold()
+        Spacer()
+        Text("\(players.count)")
+          .foregroundStyle(.secondary)
+      }
+
+      // Content
+      if players.isEmpty {
+        emptyStateView
+      } else {
+        ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+          BenchPlayerRowView(
+            player: player,
+            isNextUp: index == 0,
+            canActivate: canActivate,
+            onTap: { onPlayerTap(player) },
+            onActivate: { onActivatePlayer(player) }
+          )
+        }
+      }
+    }
+  }
+
+  // MARK: - Helper Views
+
+  private var emptyStateView: some View {
+    Text("No players on bench")
+      .foregroundStyle(.secondary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding()
+      .background(Color(uiColor: .tertiarySystemBackground))
+      .cornerRadius(8)
+  }
+}
+
+// MARK: - Preview
+
+#Preview("With Bench Players") {
+  BenchSectionView(
+    players: [
+      Player(name: "John Doe", totalPlayTime: 180, status: .benched),
+      Player(name: "Jane Smith", totalPlayTime: 240, status: .benched),
+      Player(name: "Mike Johnson", totalPlayTime: 120, status: .benched),
+    ],
+    activePlayersCount: 4,
+    maxActiveCount: 4,
+    onPlayerTap: { player in print("Tapped: \(player.name)") },
+    onActivatePlayer: { player in print("Activate: \(player.name)") }
+  )
+  .padding()
+}
+
+#Preview("Empty Bench") {
+  BenchSectionView(
+    players: [],
+    activePlayersCount: 4,
+    maxActiveCount: 4,
+    onPlayerTap: { _ in },
+    onActivatePlayer: { _ in }
+  )
+  .padding()
+}
+
+#Preview("Can Activate") {
+  BenchSectionView(
+    players: [
+      Player(name: "John Doe", totalPlayTime: 180, status: .benched),
+      Player(name: "Jane Smith", totalPlayTime: 240, status: .benched),
+    ],
+    activePlayersCount: 2,
+    maxActiveCount: 4,
+    onPlayerTap: { _ in },
+    onActivatePlayer: { _ in }
+  )
+  .padding()
+}
+
+#Preview("Cannot Activate") {
+  BenchSectionView(
+    players: [
+      Player(name: "John Doe", totalPlayTime: 180, status: .benched),
+      Player(name: "Jane Smith", totalPlayTime: 240, status: .benched),
+    ],
+    activePlayersCount: 4,
+    maxActiveCount: 4,
+    onPlayerTap: { _ in },
+    onActivatePlayer: { _ in }
+  )
+  .padding()
+}
+
+#Preview("Single Bench Player") {
+  BenchSectionView(
+    players: [
+      Player(name: "Solo Benched", totalPlayTime: 60, status: .benched)
+    ],
+    activePlayersCount: 3,
+    maxActiveCount: 4,
+    onPlayerTap: { _ in },
+    onActivatePlayer: { _ in }
+  )
+  .padding()
+}

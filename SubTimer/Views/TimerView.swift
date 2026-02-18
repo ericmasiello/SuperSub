@@ -119,99 +119,32 @@ struct TimerView: View {
   // MARK: - Active Players Section
 
   private var activePlayersSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Label("Active Players", systemImage: "figure.run")
-          .font(.title3)
-          .bold()
-        Spacer()
-        Text("\(activePlayers.count)/\(configuration.activePlayersCount)")
-          .foregroundStyle(.secondary)
-      }
-
-      if activePlayers.isEmpty {
-        emptyActivePlayersView
-      } else {
-        ForEach(activePlayers) { player in
-          activePlayerRow(player: player)
-        }
-      }
-    }
-  }
-
-  private var emptyActivePlayersView: some View {
-    Text("No active players. Tap a player on the bench to activate.")
-      .foregroundStyle(.secondary)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding()
-      .background(Color(uiColor: .tertiarySystemBackground))
-      .cornerRadius(8)
-  }
-
-  private func activePlayerRow(player: Player) -> some View {
-    let isNextToSubOut =
-      activePlayers.max(by: { $0.currentPlayDuration < $1.currentPlayDuration })?.id == player.id
-
-    return ActivePlayerRowView(
-      player: player,
-      isNextToSubOut: isNextToSubOut && activePlayers.count > 1,
-      onTap: { showingPlayerActions = player }
+    ActivePlayersSectionView(
+      players: activePlayers,
+      maxActiveCount: configuration.activePlayersCount,
+      onPlayerTap: { player in showingPlayerActions = player }
     )
   }
 
   // MARK: - Bench Section
 
   private var benchSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Label("Bench", systemImage: "person.2")
-          .font(.title3)
-          .bold()
-        Spacer()
-        Text("\(benchedPlayers.count)")
-          .foregroundStyle(.secondary)
-      }
-
-      if benchedPlayers.isEmpty {
-        Text("No players on bench")
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding()
-          .background(Color(uiColor: .tertiarySystemBackground))
-          .cornerRadius(8)
-      } else {
-        ForEach(Array(benchedPlayers.enumerated()), id: \.element.id) { index, player in
-          benchPlayerRow(player: player, isNextUp: index == 0)
-        }
-      }
-    }
-  }
-
-  private func benchPlayerRow(player: Player, isNextUp: Bool) -> some View {
-    BenchPlayerRowView(
-      player: player,
-      isNextUp: isNextUp,
-      canActivate: activePlayers.count < configuration.activePlayersCount,
-      onTap: { showingPlayerActions = player },
-      onActivate: { activatePlayer(player) }
+    BenchSectionView(
+      players: benchedPlayers,
+      activePlayersCount: activePlayers.count,
+      maxActiveCount: configuration.activePlayersCount,
+      onPlayerTap: { player in showingPlayerActions = player },
+      onActivatePlayer: activatePlayer
     )
   }
 
   // MARK: - Temporarily Out Section
 
   private var temporarilyOutSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Label("Temporarily Out", systemImage: "exclamationmark.triangle")
-        .font(.title3)
-        .bold()
-
-      ForEach(temporarilyOutPlayers) { player in
-        TemporarilyOutPlayerRowView(
-          player: player,
-          onReturnToBench: { returnPlayerToBench(player) }
-        )
-      }
-    }
+    TemporarilyOutSectionView(
+      players: temporarilyOutPlayers,
+      onReturnToBench: returnPlayerToBench
+    )
   }
 
   // MARK: - Substitute Button

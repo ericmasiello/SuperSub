@@ -502,3 +502,193 @@ Phase 3: Shared Components
 ---
 
 **Excellent momentum! Three more components created. Phase 1.4 next - section components.** 🚀
+
+---
+
+## Phase 1.4: Player Section Components ✅
+
+**Date**: February 17, 2026  
+**Status**: COMPLETE  
+**Time Spent**: ~1 hour  
+
+### Summary
+Successfully extracted three player section components that manage the lists of active, benched, and temporarily out players. Each section handles its own header, empty state, and player iteration logic.
+
+### What Was Accomplished
+
+#### 1. Created ActivePlayersSectionView Component
+**File**: `SubTimer/Views/Components/Players/ActivePlayersSectionView.swift`  
+**Lines**: 131 lines  
+
+**Component Interface**:
+```swift
+struct ActivePlayersSectionView: View {
+  let players: [Player]
+  let maxActiveCount: Int
+  let onPlayerTap: (Player) -> Void
+}
+```
+
+**Features**:
+- ✅ Section header with player count (e.g., "3/4")
+- ✅ Empty state message when no active players
+- ✅ Calculates next-to-sub-out player internally
+- ✅ 5 SwiftUI previews (with players, empty, single, at capacity, under capacity)
+- ✅ Uses ActivePlayerRowView for individual rows
+
+#### 2. Created BenchSectionView Component
+**File**: `SubTimer/Views/Components/Players/BenchSectionView.swift`  
+**Lines**: 136 lines  
+
+**Component Interface**:
+```swift
+struct BenchSectionView: View {
+  let players: [Player]
+  let activePlayersCount: Int
+  let maxActiveCount: Int
+  let onPlayerTap: (Player) -> Void
+  let onActivatePlayer: (Player) -> Void
+}
+```
+
+**Features**:
+- ✅ Section header with bench count
+- ✅ Empty state message when bench is empty
+- ✅ Handles next-up indicator (first player)
+- ✅ Determines if activation is allowed
+- ✅ 5 SwiftUI previews (with players, empty, can activate, cannot activate, single)
+- ✅ Uses BenchPlayerRowView for individual rows
+
+#### 3. Created TemporarilyOutSectionView Component
+**File**: `SubTimer/Views/Components/Players/TemporarilyOutSectionView.swift`  
+**Lines**: 82 lines  
+
+**Component Interface**:
+```swift
+struct TemporarilyOutSectionView: View {
+  let players: [Player]
+  let onReturnToBench: (Player) -> Void
+}
+```
+
+**Features**:
+- ✅ Section header with warning icon
+- ✅ Iterates through temporarily out players
+- ✅ 4 SwiftUI previews (with players, single, multiple, zero time)
+- ✅ Uses TemporarilyOutPlayerRowView for individual rows
+
+#### 4. Updated TimerView
+**Before**: 504 lines (after Phase 1.3)  
+**After**: 437 lines  
+**Reduction**: 67 lines this phase, 197 lines total  
+
+**Changes**:
+- Replaced `activePlayersSection` computed property with ActivePlayersSectionView
+- Replaced `benchSection` computed property with BenchSectionView
+- Replaced `temporarilyOutSection` computed property with TemporarilyOutSectionView
+- Removed `emptyActivePlayersView`, `activePlayerRow()`, and `benchPlayerRow()` functions
+- All section logic now encapsulated in dedicated components
+
+### Code Quality Metrics
+
+| Metric | Before | After | Target | Status |
+|--------|--------|-------|--------|--------|
+| TimerView size | 504 lines | 437 lines | <200 lines | 🟡 In Progress |
+| Components created | 5 | 8 | 26 | 🟢 On Track |
+| Components with previews | 5 (20 previews) | 8 (34 previews) | 26 | 🟢 On Track |
+| Build status | ✅ Pass | ✅ Pass | ✅ Pass | 🟢 Good |
+
+### Testing Results
+
+- ✅ **Build**: SUCCESS - No compilation errors
+- ✅ **Preview Tests**: 14 new preview states added (5 + 5 + 4)
+- ⏳ **Manual Testing**: Pending (requires running app in simulator)
+- ⏳ **Unit Tests**: Pending (requires running test suite)
+
+### File Changes
+
+```
+Created:
+++++ SubTimer/Views/Components/Players/ActivePlayersSectionView.swift (131 lines)
+++++ SubTimer/Views/Components/Players/BenchSectionView.swift (136 lines)
+++++ SubTimer/Views/Components/Players/TemporarilyOutSectionView.swift (82 lines)
+
+Modified:
+~~~~ SubTimer/Views/TimerView.swift (504 → 437 lines)
+```
+
+### Key Learnings
+
+1. **Section Encapsulation**: Each section now manages its own header, empty state, and iteration logic, making TimerView much simpler.
+
+2. **Logic Centralization**: The next-to-sub-out and next-up calculations are now handled within the section components, reducing coupling.
+
+3. **Consistent Patterns**: All three section components follow the same structure (header, empty state, content iteration).
+
+4. **Preview Completeness**: 14 new preview states provide comprehensive coverage of different section states.
+
+### Next Steps
+
+**Immediate (Phase 1.4 Completion)**:
+- [ ] Run app in simulator to verify sections
+- [ ] Test section interactions and empty states
+- [ ] Commit changes to git
+
+**Next Phase (Phase 1.5)**:
+- [ ] Extract `SubstitutionButtonView` component
+- [ ] Extract `ManualSubstitutionSheetView` component
+- [ ] Extract `PlayerActionsSheetView` component
+- [ ] Add previews for each component
+- [ ] Update TimerView to use new components
+
+### Notes
+
+- Section components provide a clean separation of concerns
+- Each section handles its own conditional rendering (empty states)
+- Row components are properly utilized by section components
+- Total of 34 preview states now available across all 8 components
+- TimerView is now 31% smaller than original (437 vs 634 lines)
+
+### Validation Status
+
+- [x] Code compiles successfully
+- [x] Component files created with proper structure
+- [x] Parent view updated to use components
+- [x] Multiple SwiftUI previews added (14 new states)
+- [ ] Manual testing in simulator
+- [ ] Git commit
+- [ ] Code review
+
+---
+
+## Overall Project Progress
+
+**Phases Completed**: 2.0 / 11 (18%)  
+**Components Created**: 8 / 26 (31%)  
+**TimerView Line Reduction**: 634 → 437 (197 lines, 31%)  
+**Estimated Time Remaining**: ~18 days  
+
+### Phase Tracker
+
+```
+Phase 1: TimerView Refactoring
+├─ [✅] 1.1: Timer Controls (COMPLETE)
+├─ [✅] 1.2: Time Display (COMPLETE)
+├─ [✅] 1.3: Player Rows (COMPLETE)
+├─ [✅] 1.4: Player Sections (COMPLETE)
+├─ [  ] 1.5: Substitution Components
+└─ [  ] 1.6: Consolidate TimerView
+
+Phase 2: SettingsView Refactoring
+├─ [  ] 2.1: Player Management
+├─ [  ] 2.2: Configuration
+├─ [  ] 2.3: Session Management
+└─ [  ] 2.4: Consolidate SettingsView
+
+Phase 3: Shared Components
+└─ [  ] 3.0: Component Library
+```
+
+---
+
+**Outstanding progress! Four phases complete in one session. Phase 1.5 next - substitution components.** 🚀
