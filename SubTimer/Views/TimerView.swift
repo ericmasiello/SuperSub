@@ -96,72 +96,24 @@ struct TimerView: View {
   // MARK: - Timer Controls
 
   private var timerControlsSection: some View {
-    HStack(spacing: 20) {
-      Button {
-        toggleTimer()
-      } label: {
-        HStack {
-          Image(
-            systemName: timerViewModel?.isRunning ?? false
-              ? "pause.circle.fill" : "play.circle.fill"
-          )
-          .font(.system(size: 30))
-          Text(timerViewModel?.isRunning ?? false ? "Pause" : "Start")
-            .font(.title2)
-            .bold()
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(timerViewModel?.isRunning ?? false ? Color.orange : Color.green)
-        .foregroundStyle(.white)
-        .cornerRadius(12)
-      }
-    }
+    TimerControlsView(
+      isRunning: timerViewModel?.isRunning ?? false,
+      onToggle: toggleTimer
+    )
   }
 
   // MARK: - Preferred Time Display
 
   private var preferredTimeDisplay: some View {
-    VStack(spacing: 8) {
-      Text("Current Play Time")
-        .font(.headline)
-        .foregroundStyle(.secondary)
-
-      if let longestPlayingPlayer = activePlayers.max(by: {
+    let currentDuration =
+      activePlayers.max(by: {
         $0.currentPlayDuration < $1.currentPlayDuration
-      }) {
-        let timeRemaining =
-          TimeInterval(configuration.preferredPlayTimeSeconds)
-          - longestPlayingPlayer.currentPlayDuration
-        let isOverTime = timeRemaining < 0
+      })?.currentPlayDuration ?? 0
 
-        Text(formatTime(abs(longestPlayingPlayer.currentPlayDuration)))
-          .font(.system(size: 60, weight: .bold, design: .rounded))
-          .monospacedDigit()
-          .foregroundStyle(isOverTime ? .red : .primary)
-
-        if configuration.preferredPlayTimeSeconds > 0 {
-          HStack(spacing: 4) {
-            Image(systemName: isOverTime ? "exclamationmark.triangle.fill" : "clock")
-            Text(
-              isOverTime
-                ? "Over by \(formatTime(abs(timeRemaining)))"
-                : "Preferred: \(formatTime(TimeInterval(configuration.preferredPlayTimeSeconds)))")
-          }
-          .font(.subheadline)
-          .foregroundStyle(isOverTime ? .red : .secondary)
-        }
-      } else {
-        Text("0:00")
-          .font(.system(size: 60, weight: .bold, design: .rounded))
-          .monospacedDigit()
-          .foregroundStyle(.secondary)
-      }
-    }
-    .padding()
-    .frame(maxWidth: .infinity)
-    .background(Color(uiColor: .secondarySystemBackground))
-    .cornerRadius(16)
+    return PreferredTimeDisplayView(
+      currentPlayDuration: currentDuration,
+      preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds
+    )
   }
 
   // MARK: - Active Players Section
@@ -621,15 +573,7 @@ struct TimerView: View {
   }
 
   private func formatTime(_ timeInterval: TimeInterval) -> String {
-    let hours = Int(timeInterval) / 3600
-    let minutes = (Int(timeInterval) % 3600) / 60
-    let seconds = Int(timeInterval) % 60
-
-    if hours > 0 {
-      return String(format: "%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-      return String(format: "%d:%02d", minutes, seconds)
-    }
+    TimeFormatter.format(timeInterval)
   }
 }
 
