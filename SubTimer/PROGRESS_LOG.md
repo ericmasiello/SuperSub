@@ -971,4 +971,288 @@ Phase 3: Shared Components
 
 ---
 
-**🎉 PHASE 1 COMPLETE! TimerView reduced by 42% (634→368 lines). 11 components extracted. Ready for Phase 2!** 🚀
+## Phase 2.1: Player Management Components ✅
+
+### Summary
+
+**Status**: ✅ Complete  
+**Date Completed**: February 17, 2026  
+**SettingsView Lines**: 425 → 271 (154 lines removed, 36% reduction this phase)  
+
+### What Was Accomplished
+
+#### 1. Created SettingsPlayerRowView Component
+
+**File**: `Views/Components/Settings/SettingsPlayerRowView.swift` (99 lines)
+
+```swift
+struct SettingsPlayerRowView: View {
+  let player: Player
+  let onEdit: () -> Void
+```
+
+**Purpose**: Individual player row in settings
+- Displays player name and status
+- Edit button integration
+- Status text helper (Currently Playing, On Bench, Temporarily Out)
+
+#### 2. Created PlayerListSectionView Component
+
+**File**: `Views/Components/Settings/PlayerListSectionView.swift` (109 lines)
+
+```swift
+struct PlayerListSectionView: View {
+  let players: [Player]
+  let onEdit: (Player) -> Void
+  let onDelete: (IndexSet) -> Void
+  let onMove: (IndexSet, Int) -> Void
+  let onAdd: () -> Void
+```
+
+**Purpose**: Complete player list section
+- ForEach with delete and move support
+- Add player button
+- Section header and footer with player count
+
+#### 3. Created AddPlayerSheetView Component
+
+**File**: `Views/Components/Settings/AddPlayerSheetView.swift` (83 lines)
+
+```swift
+struct AddPlayerSheetView: View {
+  @Binding var playerName: String
+  let onCancel: () -> Void
+  let onAdd: () -> Void
+```
+
+**Purpose**: Sheet for adding new players
+- Text field with validation
+- Name trimming and validation
+- Cancel/Add toolbar buttons
+
+#### 4. Created EditPlayerSheetView Component
+
+**File**: `Views/Components/Settings/EditPlayerSheetView.swift` (167 lines)
+
+```swift
+struct EditPlayerSheetView: View {
+  let player: Player
+  let onSave: (String, PlayerStatus) -> Void
+  let onCancel: () -> Void
+```
+
+**Purpose**: Sheet for editing player details
+- Name and status editing
+- Player statistics display (uses TimeFormatter)
+- Three sections: Player Information, Status, Statistics
+
+#### 5. Updated SettingsView
+
+- Simplified `playerManagementSection` to use `PlayerListSectionView`
+- Replaced inline add player sheet with `AddPlayerSheetView`
+- Replaced `EditPlayerView` struct with `EditPlayerSheetView` component
+- Removed `statusText` helper (now in `SettingsPlayerRowView`)
+
+### Code Quality Metrics
+
+- **SettingsPlayerRowView**: 99 lines (target: <150) ✅
+- **PlayerListSectionView**: 109 lines (target: <150) ✅
+- **AddPlayerSheetView**: 83 lines (target: <150) ✅
+- **EditPlayerSheetView**: 167 lines (target: <150) ❌ *Note: Slightly over due to 3 sections + 4 previews*
+- **SettingsView**: 271 lines (down from 425)
+- **Preview States Added**: 16 (4 + 4 + 4 + 4)
+
+### Testing Results
+
+- ✅ Build succeeded
+- ✅ All 4 components compile correctly
+- ✅ All 16 preview states available
+- ⏳ Manual testing pending
+
+### File Changes
+
+**New Files Created**:
+- `Views/Components/Settings/SettingsPlayerRowView.swift` (99 lines)
+- `Views/Components/Settings/PlayerListSectionView.swift` (109 lines)
+- `Views/Components/Settings/AddPlayerSheetView.swift` (83 lines)
+- `Views/Components/Settings/EditPlayerSheetView.swift` (167 lines)
+
+**Modified Files**:
+- `Views/SettingsView.swift` (425 → 271 lines, -154 lines)
+
+### Key Learnings
+
+1. **Component Reusability**: Player management patterns are cleaner with dedicated components
+2. **Sheet Architecture**: Passing callbacks for onSave/onCancel provides clean separation
+3. **Validation**: Form validation in components keeps parent views simple
+4. **TimeFormatter Usage**: EditPlayerSheetView successfully uses TimeFormatter utility
+
+### Next Steps
+
+- [ ] Manual testing in simulator
+- [ ] Verify add/edit/delete functionality
+- [ ] Test player reordering
+- [ ] Move to Phase 2.2: Configuration Components
+
+### Validation Status
+
+- ✅ Files created successfully
+- ✅ Build passes without errors
+- ✅ All components have multiple preview states
+- ✅ SettingsView updated to use all components
+- ✅ Code is well-documented
+- ⏳ Manual testing pending
+
+---
+
+## Phase 2.2: Configuration Components ✅
+
+### Summary
+
+**Status**: ✅ Complete  
+**Date Completed**: February 17, 2026  
+**SettingsView Lines**: 271 → 229 (42 lines removed, 15.5% reduction this phase)  
+
+### What Was Accomplished
+
+#### 1. Created ActivePlayersStepperView Component
+
+**File**: `Views/Components/Settings/ActivePlayersStepperView.swift` (91 lines)
+
+```swift
+struct ActivePlayersStepperView: View {
+  let activePlayersCount: Int
+  let maxPlayers: Int
+  let onChange: (Int) -> Void
+```
+
+**Purpose**: Stepper for active player count
+- Automatic bounds adjustment (min 1, max = player count)
+- Value validation
+- Display current count
+
+#### 2. Created PreferredTimePickerView Component
+
+**File**: `Views/Components/Settings/PreferredTimePickerView.swift` (91 lines)
+
+```swift
+struct PreferredTimePickerView: View {
+  let preferredTimeSeconds: Int
+  let onChange: (Int) -> Void
+```
+
+**Purpose**: Picker for preferred play time
+- 15 time options (30 seconds to 30 minutes)
+- Clean callback-based interface
+- Standard picker styling
+
+#### 3. Created ConfigurationSectionView Component
+
+**File**: `Views/Components/Settings/ConfigurationSectionView.swift` (107 lines)
+
+```swift
+struct ConfigurationSectionView: View {
+  let activePlayersCount: Int
+  let maxPlayers: Int
+  let preferredTimeSeconds: Int
+  let onActivePlayersChange: (Int) -> Void
+  let onPreferredTimeChange: (Int) -> Void
+```
+
+**Purpose**: Complete configuration section
+- Combines stepper and picker
+- Section header and footer
+- Warning footer for player count mismatch
+
+#### 4. Updated SettingsView
+
+- Simplified `configurationSection` to use `ConfigurationSectionView`
+- Removed inline stepper code (40+ lines)
+- Removed inline picker code with 15 options
+- Cleaner callback-based updates to configuration
+
+### Code Quality Metrics
+
+- **ActivePlayersStepperView**: 91 lines (target: <150) ✅
+- **PreferredTimePickerView**: 91 lines (target: <150) ✅
+- **ConfigurationSectionView**: 107 lines (target: <150) ✅
+- **SettingsView**: 229 lines (down from 271)
+- **Total Settings Components**: 7 files, 748 lines
+- **Preview States Added**: 15 (5 + 5 + 5)
+
+### Testing Results
+
+- ✅ Build succeeded
+- ✅ All 3 components compile correctly
+- ✅ All 15 preview states available
+- ⏳ Manual testing pending
+
+### File Changes
+
+**New Files Created**:
+- `Views/Components/Settings/ActivePlayersStepperView.swift` (91 lines)
+- `Views/Components/Settings/PreferredTimePickerView.swift` (91 lines)
+- `Views/Components/Settings/ConfigurationSectionView.swift` (107 lines)
+
+**Modified Files**:
+- `Views/SettingsView.swift` (271 → 229 lines, -42 lines)
+
+### Key Learnings
+
+1. **Stepper Validation**: Automatic bounds checking in components prevents invalid values
+2. **Picker Options**: Extracting picker keeps parent view clean and focused
+3. **Conditional Footers**: Warning messages handled cleanly in component
+4. **Callback Pattern**: Consistent onChange callbacks across all configuration components
+
+### Next Steps
+
+- [ ] Manual testing in simulator
+- [ ] Verify stepper bounds work correctly
+- [ ] Test time picker selection
+- [ ] Move to Phase 2.3: Session Management Components
+
+### Validation Status
+
+- ✅ Files created successfully
+- ✅ Build passes without errors
+- ✅ All components have multiple preview states
+- ✅ SettingsView updated to use all components
+- ✅ Code is well-documented
+- ⏳ Manual testing pending
+
+---
+
+## Overall Project Progress
+
+**Phases Completed**: 8 / 11 (73%)  
+**Components Created**: 18 / 26 (69%)  
+**TimerView Line Reduction**: 634 → 368 (266 lines, 42%)  
+**SettingsView Line Reduction**: 425 → 229 (196 lines, 46%)  
+**Phase 1**: ✅ COMPLETE (100%)  
+**Phase 2**: 2/4 complete (50%)  
+**Estimated Time Remaining**: ~6 days
+
+### Phase Tracker
+
+```
+Phase 1: TimerView Refactoring
+├─ [✅] 1.1: Timer Controls (COMPLETE)
+├─ [✅] 1.2: Time Display (COMPLETE)
+├─ [✅] 1.3: Player Rows (COMPLETE)
+├─ [✅] 1.4: Player Sections (COMPLETE)
+├─ [✅] 1.5: Substitution Components (COMPLETE)
+└─ [✅] 1.6: Consolidate TimerView (COMPLETE)
+
+Phase 2: SettingsView Refactoring
+├─ [✅] 2.1: Player Management (COMPLETE)
+├─ [✅] 2.2: Configuration (COMPLETE)
+├─ [  ] 2.3: Session Management
+└─ [  ] 2.4: Consolidate SettingsView
+
+Phase 3: Shared Components
+└─ [  ] 3.0: Component Library
+```
+
+---
+
+**🚀 Phase 2 is 50% complete! SettingsView reduced by 46% (425→229 lines). 18 total components extracted. Ready for Phase 2.3!** 🚀
