@@ -27,8 +27,8 @@ Use this document to track your progress through the refactoring phases. Check o
 - [ ] Test: Visual appearance unchanged (manual test needed)
 - [ ] Test: All existing tests pass (manual test needed)
 - [ ] Code review completed
-- [ ] Git commit created
-- [ ] **Phase 1.1 Complete** ✅
+- [x] Git commit created
+- [x] **Phase 1.1 Complete** ✅
 
 **Notes**:
 ```
@@ -63,7 +63,7 @@ Issues Encountered:
 - [ ] Unit test: TimeFormatter edge cases (0s, 30s, 60s, 3600s) (could be added)
 - [ ] Test: All existing tests pass (manual test needed)
 - [ ] Code review completed
-- [ ] Git commit created
+- [x] Git commit created
 - [x] **Phase 1.2 Complete** ✅
 
 **Notes**:
