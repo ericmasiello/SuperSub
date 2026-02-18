@@ -150,23 +150,10 @@ struct TimerView: View {
   // MARK: - Substitute Button
 
   private var substituteButtonSection: some View {
-    Button {
-      performAutomaticSubstitution()
-    } label: {
-      HStack {
-        Image(systemName: "arrow.left.arrow.right.circle.fill")
-          .font(.title2)
-        Text("Substitute")
-          .font(.title2)
-          .bold()
-      }
-      .frame(maxWidth: .infinity)
-      .padding(.vertical, 20)
-      .background(canPerformSubstitution ? Color.blue : Color.gray.opacity(0.3))
-      .foregroundStyle(.white)
-      .cornerRadius(12)
-    }
-    .disabled(!canPerformSubstitution)
+    SubstitutionButtonView(
+      canPerformSubstitution: canPerformSubstitution,
+      onSubstitute: performAutomaticSubstitution
+    )
   }
 
   private var canPerformSubstitution: Bool {
@@ -176,112 +163,46 @@ struct TimerView: View {
   // MARK: - Manual Substitution Sheet
 
   private func manualSubstitutionSheet(playerToSubOut: Player) -> some View {
-    NavigationStack {
-      List {
-        ForEach(benchedPlayers) { benchPlayer in
-          Button {
-            performManualSubstitution(subOut: playerToSubOut, subIn: benchPlayer)
-          } label: {
-            HStack {
-              Text(benchPlayer.name)
-              Spacer()
-              Text("Total: \(formatTime(benchPlayer.totalPlayTime))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-          }
-        }
+    ManualSubstitutionSheetView(
+      playerToSubOut: playerToSubOut,
+      benchPlayers: benchedPlayers,
+      onSubstitute: { benchPlayer in
+        performManualSubstitution(subOut: playerToSubOut, subIn: benchPlayer)
+      },
+      onCancel: {
+        showingManualSubstitution = false
+        selectedPlayerToSubOut = nil
       }
-      .navigationTitle("Select Player to Sub In")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") {
-            showingManualSubstitution = false
-            selectedPlayerToSubOut = nil
-          }
-        }
-      }
-    }
+    )
   }
 
   // MARK: - Player Actions Sheet
 
   private func playerActionsSheet(player: Player) -> some View {
-    NavigationStack {
-      List {
-        if player.status == .active {
-          Section {
-            Button {
-              selectedPlayerToSubOut = player
-              showingPlayerActions = nil
-              showingManualSubstitution = true
-            } label: {
-              Label("Substitute Out", systemImage: "arrow.down.circle")
-            }
-
-            Button(role: .destructive) {
-              markPlayerTemporarilyOut(player)
-              showingPlayerActions = nil
-            } label: {
-              Label("Mark Temporarily Out", systemImage: "exclamationmark.triangle")
-            }
-          }
-        } else if player.status == .benched {
-          Section {
-            if activePlayers.count < configuration.activePlayersCount {
-              Button {
-                activatePlayer(player)
-                showingPlayerActions = nil
-              } label: {
-                Label("Activate Player", systemImage: "arrow.up.circle")
-              }
-            }
-
-            Button(role: .destructive) {
-              markPlayerTemporarilyOut(player)
-              showingPlayerActions = nil
-            } label: {
-              Label("Mark Temporarily Out", systemImage: "exclamationmark.triangle")
-            }
-          }
-        } else if player.status == .temporarilyOut {
-          Section {
-            Button {
-              returnPlayerToBench(player)
-              showingPlayerActions = nil
-            } label: {
-              Label("Return to Bench", systemImage: "arrow.counterclockwise")
-            }
-          }
-        }
-
-        Section {
-          HStack {
-            Text("Current Play Duration")
-            Spacer()
-            Text(formatTime(player.currentPlayDuration))
-              .foregroundStyle(.secondary)
-          }
-
-          HStack {
-            Text("Total Play Time")
-            Spacer()
-            Text(formatTime(player.totalPlayTime))
-              .foregroundStyle(.secondary)
-          }
-        }
+    PlayerActionsSheetView(
+      player: player,
+      canActivate: activePlayers.count < configuration.activePlayersCount,
+      onSubstituteOut: {
+        selectedPlayerToSubOut = player
+        showingPlayerActions = nil
+        showingManualSubstitution = true
+      },
+      onActivatePlayer: {
+        activatePlayer(player)
+        showingPlayerActions = nil
+      },
+      onMarkTemporarilyOut: {
+        markPlayerTemporarilyOut(player)
+        showingPlayerActions = nil
+      },
+      onReturnToBench: {
+        returnPlayerToBench(player)
+        showingPlayerActions = nil
+      },
+      onClose: {
+        showingPlayerActions = nil
       }
-      .navigationTitle(player.name)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Close") {
-            showingPlayerActions = nil
-          }
-        }
-      }
-    }
+    )
   }
 
   // MARK: - Actions
