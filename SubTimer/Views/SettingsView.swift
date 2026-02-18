@@ -34,7 +34,7 @@ struct SettingsView: View {
       Form {
         playerManagementSection
         configurationSection
-        sessionManagementSection
+        sessionManagementSectionWithNav
       }
       .navigationTitle("Settings")
       .sheet(isPresented: $showingAddPlayer) {
@@ -86,7 +86,7 @@ struct SettingsView: View {
 
   // MARK: - Session Management Section
 
-  private var sessionManagementSection: some View {
+  private var sessionManagementSectionWithNav: some View {
     Section {
       NavigationLink {
         sessionHistoryView
@@ -107,34 +107,10 @@ struct SettingsView: View {
   // MARK: - Session History View
 
   private var sessionHistoryView: some View {
-    List {
-      if sessions.isEmpty {
-        ContentUnavailableView(
-          "No Sessions",
-          systemImage: "clock.badge.questionmark",
-          description: Text("Start a session from the Timer tab to see history here.")
-        )
-      } else {
-        ForEach(sessions) { session in
-          VStack(alignment: .leading, spacing: 4) {
-            Text(session.startDate, format: .dateTime.month().day().year().hour().minute())
-              .font(.headline)
-
-            HStack {
-              Label("\(session.formattedDuration)", systemImage: "clock")
-              Label("\(session.substitutionCount) subs", systemImage: "arrow.left.arrow.right")
-              Label("\(session.playerNames.count) players", systemImage: "person.2")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-          }
-          .padding(.vertical, 4)
-        }
-        .onDelete(perform: deleteSessions)
-      }
-    }
-    .navigationTitle("Session History")
-    .navigationBarTitleDisplayMode(.inline)
+    SessionHistoryView(
+      sessions: sessions,
+      onDelete: deleteSessions
+    )
   }
 
   // MARK: - Add Player Sheet
