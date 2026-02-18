@@ -69,61 +69,19 @@ struct SettingsView: View {
   // MARK: - Configuration Section
 
   private var configurationSection: some View {
-    Section {
-      Stepper(
-        value: Binding(
-          get: { configuration.activePlayersCount },
-          set: { newValue in
-            let maxPlayers = players.count
-            configuration.activePlayersCount = min(newValue, maxPlayers > 0 ? maxPlayers : 1)
-            configuration.lastModifiedDate = Date()
-          }
-        ), in: 1...max(1, players.count)
-      ) {
-        HStack {
-          Text("Active Players")
-          Spacer()
-          Text("\(configuration.activePlayersCount)")
-            .foregroundStyle(.secondary)
-        }
+    ConfigurationSectionView(
+      activePlayersCount: configuration.activePlayersCount,
+      maxPlayers: players.count,
+      preferredTimeSeconds: configuration.preferredPlayTimeSeconds,
+      onActivePlayersChange: { newValue in
+        configuration.activePlayersCount = newValue
+        configuration.lastModifiedDate = Date()
+      },
+      onPreferredTimeChange: { newValue in
+        configuration.preferredPlayTimeSeconds = newValue
+        configuration.lastModifiedDate = Date()
       }
-
-      Picker(
-        "Preferred Play Time",
-        selection: Binding(
-          get: { configuration.preferredPlayTimeSeconds },
-          set: { newValue in
-            configuration.preferredPlayTimeSeconds = newValue
-            configuration.lastModifiedDate = Date()
-          }
-        )
-      ) {
-        Text("0:30").tag(30)
-        Text("1:00").tag(60)
-        Text("1:30").tag(90)
-        Text("2:00").tag(120)
-        Text("2:30").tag(150)
-        Text("3:00").tag(180)
-        Text("3:30").tag(210)
-        Text("4:00").tag(240)
-        Text("4:30").tag(270)
-        Text("5:00").tag(300)
-        Text("7:30").tag(450)
-        Text("10:00").tag(600)
-        Text("15:00").tag(900)
-        Text("20:00").tag(1200)
-        Text("30:00").tag(1800)
-      }
-    } header: {
-      Text("Configuration")
-    } footer: {
-      if players.count < configuration.activePlayersCount {
-        Text(
-          "⚠️ Active players automatically adjusted to match available players (\(players.count))"
-        )
-        .foregroundStyle(.orange)
-      }
-    }
+    )
   }
 
   // MARK: - Session Management Section
