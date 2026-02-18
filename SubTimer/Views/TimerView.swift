@@ -152,38 +152,11 @@ struct TimerView: View {
     let isNextToSubOut =
       activePlayers.max(by: { $0.currentPlayDuration < $1.currentPlayDuration })?.id == player.id
 
-    return Button {
-      showingPlayerActions = player
-    } label: {
-      HStack {
-        VStack(alignment: .leading, spacing: 4) {
-          HStack {
-            Text(player.name)
-              .font(.headline)
-            if isNextToSubOut && activePlayers.count > 1 {
-              Image(systemName: "arrow.down.circle.fill")
-                .foregroundStyle(.orange)
-                .font(.caption)
-            }
-          }
-          Text(formatTime(player.currentPlayDuration))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
-        }
-
-        Spacer()
-
-        Image(systemName: "ellipsis.circle")
-          .foregroundStyle(.blue)
-      }
-      .padding()
-      .background(
-        isNextToSubOut ? Color.orange.opacity(0.1) : Color(uiColor: .secondarySystemBackground)
-      )
-      .cornerRadius(8)
-    }
-    .buttonStyle(.plain)
+    return ActivePlayerRowView(
+      player: player,
+      isNextToSubOut: isNextToSubOut && activePlayers.count > 1,
+      onTap: { showingPlayerActions = player }
+    )
   }
 
   // MARK: - Bench Section
@@ -215,43 +188,13 @@ struct TimerView: View {
   }
 
   private func benchPlayerRow(player: Player, isNextUp: Bool) -> some View {
-    Button {
-      showingPlayerActions = player
-    } label: {
-      HStack {
-        VStack(alignment: .leading, spacing: 4) {
-          HStack {
-            Text(player.name)
-              .font(.headline)
-            if isNextUp && activePlayers.count >= configuration.activePlayersCount {
-              Image(systemName: "arrow.up.circle.fill")
-                .foregroundStyle(.green)
-                .font(.caption)
-            }
-          }
-          Text("Total: \(formatTime(player.totalPlayTime))")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
-        }
-
-        Spacer()
-
-        if activePlayers.count < configuration.activePlayersCount {
-          Button {
-            activatePlayer(player)
-          } label: {
-            Image(systemName: "plus.circle.fill")
-              .font(.title2)
-              .foregroundStyle(.green)
-          }
-        }
-      }
-      .padding()
-      .background(isNextUp ? Color.green.opacity(0.1) : Color(uiColor: .secondarySystemBackground))
-      .cornerRadius(8)
-    }
-    .buttonStyle(.plain)
+    BenchPlayerRowView(
+      player: player,
+      isNextUp: isNextUp,
+      canActivate: activePlayers.count < configuration.activePlayersCount,
+      onTap: { showingPlayerActions = player },
+      onActivate: { activatePlayer(player) }
+    )
   }
 
   // MARK: - Temporarily Out Section
@@ -263,32 +206,10 @@ struct TimerView: View {
         .bold()
 
       ForEach(temporarilyOutPlayers) { player in
-        HStack {
-          VStack(alignment: .leading, spacing: 4) {
-            Text(player.name)
-              .font(.headline)
-            Text("Total: \(formatTime(player.totalPlayTime))")
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
-          }
-
-          Spacer()
-
-          Button {
-            returnPlayerToBench(player)
-          } label: {
-            Text("Return to Bench")
-              .font(.subheadline)
-              .padding(.horizontal, 12)
-              .padding(.vertical, 6)
-              .background(Color.blue)
-              .foregroundStyle(.white)
-              .cornerRadius(6)
-          }
-        }
-        .padding()
-        .background(Color.yellow.opacity(0.1))
-        .cornerRadius(8)
+        TemporarilyOutPlayerRowView(
+          player: player,
+          onReturnToBench: { returnPlayerToBench(player) }
+        )
       }
     }
   }
