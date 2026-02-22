@@ -283,16 +283,17 @@ extension TimerView {
     for i in 0..<playersToActivate where i < allFilteredPlayers.count {
       allFilteredPlayers[i].status = .active
       allFilteredPlayers[i].activatedAtTime = timerElapsed
-      allFilteredPlayers[i].currentPlayDuration = timerElapsed
+      allFilteredPlayers[i].currentPlayDuration = 0  // Will be calculated based on activatedAtTime
     }
   }
 
   private func updatePlayerTimes() {
     guard let timerElapsed = timerViewModel?.elapsedTime else { return }
 
-    // Set currentPlayDuration to match timer for all active players
+    // Calculate currentPlayDuration based on when each player was activated
+    // This preserves play time for players who aren't being substituted
     for player in activePlayers {
-      player.currentPlayDuration = timerElapsed
+      player.currentPlayDuration = timerElapsed - player.activatedAtTime
     }
 
     if let activeSession = sessions.first(where: { $0.isActive }) {
@@ -329,24 +330,46 @@ extension TimerView {
   private func performSubstitution(subOut: Player, subIn: Player) {
     guard let timerElapsed = timerViewModel?.elapsedTime else { return }
 
-//    let wasRunning = timerViewModel?.isRunning ?? false
-    timerViewModel?.resetTimer()
+    let wasRunning = timerViewModel?.isRunning ?? false
+
+    // Pause the timer if it's running
+    if wasRunning {
+      timerViewModel?.pauseTimer()
+    }
+
+    // For all active players EXCEPT the one being subbed out,
+    // preserve their accumulated play time by adjusting their activatedAtTime
+    // to account for the timer reset
+    for player in activePlayers where player.id != subOut.id {
+      let currentAccumulatedTime = timerElapsed - player.activatedAtTime
+      // After timer resets to 0, this negative activatedAtTime will preserve their time
+      player.activatedAtTime = -currentAccumulatedTime
+    }
 
     // Add the time this player was actually active to their total
     let timePlayedThisSegment = timerElapsed - subOut.activatedAtTime
     subOut.totalPlayTime += timePlayedThisSegment
     subOut.status = .benched
+    subOut.currentPlayDuration = 0
 
-    // Set when the new player became active
+    // Set when the new player became active (will be 0 after timer reset)
+    // This ensures they start with 0 current play duration
     subIn.status = .active
-    subIn.activatedAtTime = timerElapsed
-    subIn.currentPlayDuration = timerElapsed
+    subIn.activatedAtTime = 0
+    subIn.currentPlayDuration = 0
 
     if let activeSession = sessions.first(where: { $0.isActive }) {
       activeSession.substitutionCount += 1
     }
-//    if wasRunning { timerViewModel?.startTimer() }
-    timerViewModel?.startTimer()
+
+    // Reset the timer to 0
+    timerViewModel?.resetTimer()
+
+    // Resume the timer if it was running
+    if wasRunning {
+      timerViewModel?.startTimer()
+    }
+
     provideHapticFeedback()
   }
 
@@ -356,7 +379,7 @@ extension TimerView {
     guard let timerElapsed = timerViewModel?.elapsedTime else { return }
     player.status = .active
     player.activatedAtTime = timerElapsed
-    player.currentPlayDuration = timerElapsed
+    player.currentPlayDuration = 0  // Will be calculated based on activatedAtTime
   }
 
   func markPlayerTemporarilyOut(_ player: Player) {
