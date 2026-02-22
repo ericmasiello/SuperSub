@@ -24,12 +24,23 @@ struct TemporarilyOutSectionView: View {
         .bold()
 
       // Content
-      ForEach(players) { player in
-        TemporarilyOutPlayerRowView(
-          player: player,
-          onReturnToBench: { onReturnToBench(player) }
-        )
+      
+      List {
+        ForEach(players) { player in
+          TemporarilyOutPlayerRowView(
+            player: player,
+            onReturnToBench: { onReturnToBench(player) }
+          )
+          .listRowInsets(EdgeInsets())
+          .listRowSeparator(.hidden)
+          .listRowBackground(
+                             RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.1))
+                             )
+        }
       }
+      .listStyle(.plain)
+      .listRowSpacing(8)
+    
     }
   }
 }

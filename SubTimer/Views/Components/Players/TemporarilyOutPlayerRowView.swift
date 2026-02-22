@@ -39,8 +39,7 @@ struct TemporarilyOutPlayerRowView: View {
       }
     }
     .padding()
-    .background(Color.yellow.opacity(0.1))
-    .cornerRadius(8)
+
     .accessibilityIdentifier("player.row.tempout")
   }
 }

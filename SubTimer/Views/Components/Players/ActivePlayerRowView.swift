@@ -42,10 +42,7 @@ struct ActivePlayerRowView: View {
           .foregroundStyle(.blue)
       }
       .padding()
-      .background(
-        isNextToSubOut ? Color.orange.opacity(0.1) : Color(uiColor: .secondarySystemBackground)
-      )
-      .cornerRadius(8)
+
     }
     .buttonStyle(.plain)
     .accessibilityIdentifier("player.row.active")

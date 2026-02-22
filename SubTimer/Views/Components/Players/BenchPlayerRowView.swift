@@ -49,7 +49,6 @@ struct BenchPlayerRowView: View {
         }
       }
       .padding()
-      .background(isNextUp ? Color.green.opacity(0.1) : Color(uiColor: .secondarySystemBackground))
       .cornerRadius(8)
     }
     .buttonStyle(.plain)

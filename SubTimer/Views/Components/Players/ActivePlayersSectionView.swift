@@ -39,13 +39,22 @@ struct ActivePlayersSectionView: View {
       if players.isEmpty {
         emptyStateView
       } else {
-        ForEach(players) { player in
-          ActivePlayerRowView(
-            player: player,
-            isNextToSubOut: isNextToSubOut(player),
-            onTap: { onPlayerTap(player) }
-          )
+        List {
+          ForEach(players) { player in
+            ActivePlayerRowView(
+              player: player,
+              isNextToSubOut: isNextToSubOut(player),
+              onTap: { onPlayerTap(player) }
+            )
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(isNextToSubOut(player) ?
+                               RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.1))
+                               : RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))          
+          }
         }
+        .listStyle(.plain)
+        .listRowSpacing(8)
       }
     }
   }

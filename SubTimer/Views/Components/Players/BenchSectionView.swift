@@ -53,11 +53,15 @@ struct BenchSectionView: View {
             )
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .listRowBackground(index == 0 ?
+                               RoundedRectangle(cornerRadius: 12).fill(Color.green.opacity(0.1))
+                               : RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+            
           }
           .onMove(perform: movePlayer)
         }
         .listStyle(.plain)
+        .listRowSpacing(8)
         .environment(\.editMode, .constant(.active))
         .frame(height: CGFloat(players.count) * 80)
       } else {
