@@ -57,6 +57,7 @@ struct TimerView: View {
   @State var showingManualSubstitution = false
   @State var selectedPlayerToSubOut: Player?
   @State var showingPlayerActions: Player?
+  @State private var benchOrder: [UUID] = []
 
   var configuration: AppConfiguration {
     if let config = configurations.first {
@@ -85,12 +86,14 @@ struct TimerView: View {
 
   var benchedPlayers: [Player] {
     let benched = players.filter { $0.status == .benched }
-    let manager = benchManager
+
+    // Use the state-managed bench order for immediate UI updates
+    let orderToUse = benchOrder.isEmpty ? (benchManagers.first?.playerOrder ?? []) : benchOrder
 
     // Sort by bench order, then by sortOrder for players not in the bench order
     return benched.sorted { player1, player2 in
-      let pos1 = manager.position(of: player1.id)
-      let pos2 = manager.position(of: player2.id)
+      let pos1 = orderToUse.firstIndex(of: player1.id)
+      let pos2 = orderToUse.firstIndex(of: player2.id)
 
       if let p1 = pos1, let p2 = pos2 {
         return p1 < p2
@@ -120,6 +123,8 @@ struct TimerView: View {
       .navigationTitle("SubTimer")
       .onAppear {
         initializeViewModel(allPlayers: players)
+        syncBenchManager()
+        loadBenchOrder()
       }
       .sheet(isPresented: $showingManualSubstitution) {
         if let playerToSubOut = selectedPlayerToSubOut {
@@ -289,6 +294,27 @@ extension TimerView {
     timerViewModel?.onTimerTick = { updatePlayerTimes() }
   }
 
+  func syncBenchManager() {
+    let manager = benchManager
+    let currentBenched = players.filter { $0.status == .benched }
+
+    // Add any benched players that aren't in the manager
+    for player in currentBenched {
+      if manager.position(of: player.id) == nil {
+        manager.addPlayer(player.id)
+      }
+    }
+
+    // Remove any players that are no longer benched
+    let benchedIds = Set(currentBenched.map { $0.id })
+    manager.playerOrder.removeAll { !benchedIds.contains($0) }
+    manager.updatedDate = Date()
+  }
+
+  func loadBenchOrder() {
+    benchOrder = benchManagers.first?.playerOrder ?? []
+  }
+
   func toggleTimer() {
     guard let vm = timerViewModel else { return }
     if vm.isRunning {
@@ -381,6 +407,7 @@ extension TimerView {
     subOut.totalPlayTime += timePlayedThisSegment
     subOut.status = .benched
     benchManager.addPlayer(subOut.id)
+    benchOrder = benchManager.playerOrder
     subOut.currentPlayDuration = 0
 
     // Set when the new player became active (will be 0 after timer reset)
@@ -388,6 +415,8 @@ extension TimerView {
     subIn.status = .active
     subIn.activatedAtTime = 0
     subIn.currentPlayDuration = 0
+    benchManager.removePlayer(subIn.id)
+    benchOrder = benchManager.playerOrder
 
     if let activeSession = sessions.first(where: { $0.isActive }) {
       activeSession.substitutionCount += 1
@@ -411,6 +440,8 @@ extension TimerView {
     player.status = .active
     player.activatedAtTime = timerElapsed
     player.currentPlayDuration = 0  // Will be calculated based on activatedAtTime
+    benchManager.removePlayer(player.id)
+    benchOrder = benchManager.playerOrder
   }
 
   func markPlayerTemporarilyOut(_ player: Player) {
@@ -425,12 +456,28 @@ extension TimerView {
   func returnPlayerToBench(_ player: Player) {
     player.status = .benched
     benchManager.addPlayer(player.id)
+    benchOrder = benchManager.playerOrder
   }
 
   func reorderBench(_ reorderedPlayers: [Player]) {
-    // Update bench manager with new order
-    benchManager.playerOrder = reorderedPlayers.map { $0.id }
-    benchManager.updatedDate = Date()
+    let newOrder = reorderedPlayers.map { $0.id }
+
+    // Immediately update the state for instant UI feedback
+    benchOrder = newOrder
+
+    // Get the first bench manager (or create one)
+    guard let manager = benchManagers.first else {
+      let newManager = BenchManager()
+      newManager.playerOrder = newOrder
+      newManager.updatedDate = Date()
+      modelContext.insert(newManager)
+      return
+    }
+
+    // Update the bench manager with new order
+    manager.playerOrder.removeAll()
+    manager.playerOrder.append(contentsOf: newOrder)
+    manager.updatedDate = Date()
   }
 
   // MARK: - Session & Feedback
