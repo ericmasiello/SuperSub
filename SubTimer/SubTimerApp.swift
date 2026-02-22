@@ -35,7 +35,28 @@ struct SubTimerApp: App {
 
       return container
     } catch {
-      fatalError("Could not create ModelContainer: \(error)")
+      // Migration failed - delete the old database and create a new one
+      print("ModelContainer creation failed: \(error)")
+      print("Attempting to delete old database and create new one...")
+
+      // Delete the existing database files
+      let url = modelConfiguration.url
+      try? FileManager.default.removeItem(at: url)
+      try? FileManager.default.removeItem(
+        at: url.deletingPathExtension().appendingPathExtension("sqlite-shm"))
+      try? FileManager.default.removeItem(
+        at: url.deletingPathExtension().appendingPathExtension("sqlite-wal"))
+
+      // Try creating container again
+      do {
+        let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+        if isUITesting {
+          setupTestData(in: container)
+        }
+        return container
+      } catch {
+        fatalError("Could not create ModelContainer even after cleanup: \(error)")
+      }
     }
   }()
 
@@ -93,3 +114,4 @@ struct SubTimerApp: App {
     }
   }
 }
+

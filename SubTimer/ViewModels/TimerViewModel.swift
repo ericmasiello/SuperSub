@@ -11,6 +11,7 @@ import SwiftData
 @Observable
 class TimerViewModel {
   var isRunning = false
+  var elapsedTime: TimeInterval = 0
   var onTimerTick: (() -> Void)?
 
   private var timer: Timer?
@@ -25,6 +26,7 @@ class TimerViewModel {
 
     isRunning = true
     timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+      self?.elapsedTime += 1
       self?.onTimerTick?()
     }
   }
@@ -37,6 +39,7 @@ class TimerViewModel {
 
   func resetTimer() {
     isRunning = false
+    elapsedTime = 0
     timer?.invalidate()
     timer = nil
   }

@@ -144,10 +144,8 @@ struct TimerView: View {
   // MARK: - Preferred Time Display
 
   private var preferredTimeDisplay: some View {
-    let currentDuration =
-      activePlayers.max(by: {
-        $0.currentPlayDuration < $1.currentPlayDuration
-      })?.currentPlayDuration ?? 0
+
+    let currentDuration = timerViewModel?.elapsedTime ?? 0
 
     return PreferredTimeDisplayView(
       currentPlayDuration: currentDuration,
@@ -271,7 +269,7 @@ extension TimerView {
       vm.startTimer()
     }
   }
-  
+
   func resetTimer() {
     guard let vm = timerViewModel else { return }
     vm.resetTimer()
@@ -281,13 +279,22 @@ extension TimerView {
     guard activePlayers.isEmpty else { return }
     let allFilteredPlayers = activePlayers + benchedPlayers + temporarilyOutPlayers
     let playersToActivate = min(configuration.activePlayersCount, allFilteredPlayers.count)
+    let timerElapsed = timerViewModel?.elapsedTime ?? 0
     for i in 0..<playersToActivate where i < allFilteredPlayers.count {
       allFilteredPlayers[i].status = .active
+      allFilteredPlayers[i].activatedAtTime = timerElapsed
+      allFilteredPlayers[i].currentPlayDuration = timerElapsed
     }
   }
 
   private func updatePlayerTimes() {
-    for player in activePlayers { player.currentPlayDuration += 1 }
+    guard let timerElapsed = timerViewModel?.elapsedTime else { return }
+
+    // Set currentPlayDuration to match timer for all active players
+    for player in activePlayers {
+      player.currentPlayDuration = timerElapsed
+    }
+
     if let activeSession = sessions.first(where: { $0.isActive }) {
       activeSession.duration = Date().timeIntervalSince(activeSession.startDate)
     }
@@ -295,13 +302,9 @@ extension TimerView {
   }
 
   private func checkPreferredTimeAlert() {
-    guard
-      let longestPlayingPlayer = activePlayers.max(by: {
-        $0.currentPlayDuration < $1.currentPlayDuration
-      })
-    else { return }
+    guard let timerElapsed = timerViewModel?.elapsedTime else { return }
     let preferredTime = TimeInterval(configuration.preferredPlayTimeSeconds)
-    if preferredTime > 0 && longestPlayingPlayer.currentPlayDuration == preferredTime {
+    if preferredTime > 0 && timerElapsed == preferredTime {
       triggerPreferredTimeAlert()
     }
   }
@@ -324,29 +327,43 @@ extension TimerView {
   }
 
   private func performSubstitution(subOut: Player, subIn: Player) {
-    let wasRunning = timerViewModel?.isRunning ?? false
-    subOut.totalPlayTime += subOut.currentPlayDuration
+    guard let timerElapsed = timerViewModel?.elapsedTime else { return }
+
+//    let wasRunning = timerViewModel?.isRunning ?? false
+    timerViewModel?.resetTimer()
+
+    // Add the time this player was actually active to their total
+    let timePlayedThisSegment = timerElapsed - subOut.activatedAtTime
+    subOut.totalPlayTime += timePlayedThisSegment
     subOut.status = .benched
+
+    // Set when the new player became active
     subIn.status = .active
-    for player in activePlayers { player.currentPlayDuration = 0 }
+    subIn.activatedAtTime = timerElapsed
+    subIn.currentPlayDuration = timerElapsed
+
     if let activeSession = sessions.first(where: { $0.isActive }) {
       activeSession.substitutionCount += 1
     }
-    if wasRunning { timerViewModel?.startTimer() }
+//    if wasRunning { timerViewModel?.startTimer() }
+    timerViewModel?.startTimer()
     provideHapticFeedback()
   }
 
   // MARK: - Player Status
 
   func activatePlayer(_ player: Player) {
+    guard let timerElapsed = timerViewModel?.elapsedTime else { return }
     player.status = .active
-    player.currentPlayDuration = 0
+    player.activatedAtTime = timerElapsed
+    player.currentPlayDuration = timerElapsed
   }
 
   func markPlayerTemporarilyOut(_ player: Player) {
     if player.status == .active {
-      player.totalPlayTime += player.currentPlayDuration
-      player.currentPlayDuration = 0
+      guard let timerElapsed = timerViewModel?.elapsedTime else { return }
+      let timePlayedThisSegment = timerElapsed - player.activatedAtTime
+      player.totalPlayTime += timePlayedThisSegment
     }
     player.status = .temporarilyOut
   }

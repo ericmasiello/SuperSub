@@ -57,6 +57,7 @@ struct SettingsView: View {
   @State private var newPlayerName = ""
   @State private var editingPlayer: Player?
   @State private var showingClearSessionAlert = false
+  @State private var showingResetTimesAlert = false
 
   private var configuration: AppConfiguration {
     if let config = configurations.first {
@@ -89,6 +90,14 @@ struct SettingsView: View {
         }
       } message: {
         Text("This will reset all player times and end the current session. This cannot be undone.")
+      }
+      .alert("Reset All Player Times", isPresented: $showingResetTimesAlert) {
+        Button("Cancel", role: .cancel) {}
+        Button("Reset", role: .destructive) {
+          resetAllPlayerTimes()
+        }
+      } message: {
+        Text("This will reset all player times to zero. This cannot be undone.")
       }
     }
   }
@@ -137,6 +146,12 @@ struct SettingsView: View {
         showingClearSessionAlert = true
       } label: {
         Label("Clear Current Session", systemImage: "trash")
+      }
+
+      Button(role: .destructive) {
+        showingResetTimesAlert = true
+      } label: {
+        Label("Reset All Player Times", systemImage: "gobackward")
       }
     } header: {
       Text("Session Management")
@@ -238,6 +253,14 @@ extension SettingsView {
   func deleteSessions(at offsets: IndexSet) {
     for index in offsets {
       modelContext.delete(sessions[index])
+    }
+  }
+
+  func resetAllPlayerTimes() {
+    for player in players {
+      player.activatedAtTime = 0
+      player.currentPlayDuration = 0
+      player.totalPlayTime = 0
     }
   }
 }
