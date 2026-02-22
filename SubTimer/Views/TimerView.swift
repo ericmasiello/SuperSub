@@ -58,6 +58,7 @@ struct TimerView: View {
   @State var selectedPlayerToSubOut: Player?
   @State var showingPlayerActions: Player?
   @State private var benchOrder: [UUID] = []
+  @State private var cachedBenchManager: BenchManager?
 
   var configuration: AppConfiguration {
     if let config = configurations.first {
@@ -70,11 +71,18 @@ struct TimerView: View {
   }
 
   var benchManager: BenchManager {
+    if let cached = cachedBenchManager {
+      return cached
+    }
+
     if let manager = benchManagers.first {
+      cachedBenchManager = manager
       return manager
     } else {
       let newManager = BenchManager()
       modelContext.insert(newManager)
+      try? modelContext.save()
+      cachedBenchManager = newManager
       return newManager
     }
   }
@@ -122,6 +130,8 @@ struct TimerView: View {
       }
       .navigationTitle("SubTimer")
       .onAppear {
+        // Initialize cached bench manager first
+        _ = benchManager
         initializeViewModel(allPlayers: players)
         syncBenchManager()
         loadBenchOrder()
@@ -296,9 +306,11 @@ extension TimerView {
 
   func syncBenchManager() {
     let manager = benchManager
-    let currentBenched = players.filter { $0.status == .benched }
+    let currentBenched = players.filter { $0.status == .benched }.sorted {
+      $0.sortOrder < $1.sortOrder
+    }
 
-    // Add any benched players that aren't in the manager
+    // Add any benched players that aren't in the manager (in sortOrder)
     for player in currentBenched {
       if manager.position(of: player.id) == nil {
         manager.addPlayer(player.id)
@@ -312,7 +324,7 @@ extension TimerView {
   }
 
   func loadBenchOrder() {
-    benchOrder = benchManagers.first?.playerOrder ?? []
+    benchOrder = benchManager.playerOrder
   }
 
   func toggleTimer() {
@@ -406,8 +418,6 @@ extension TimerView {
     let timePlayedThisSegment = timerElapsed - subOut.activatedAtTime
     subOut.totalPlayTime += timePlayedThisSegment
     subOut.status = .benched
-    benchManager.addPlayer(subOut.id)
-    benchOrder = benchManager.playerOrder
     subOut.currentPlayDuration = 0
 
     // Set when the new player became active (will be 0 after timer reset)
@@ -415,7 +425,10 @@ extension TimerView {
     subIn.status = .active
     subIn.activatedAtTime = 0
     subIn.currentPlayDuration = 0
+
+    // Update bench order: remove the player coming in, then add the player going out
     benchManager.removePlayer(subIn.id)
+    benchManager.addPlayer(subOut.id)
     benchOrder = benchManager.playerOrder
 
     if let activeSession = sessions.first(where: { $0.isActive }) {

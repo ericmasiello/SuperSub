@@ -36,6 +36,14 @@ final class BenchManager {
     updatedDate = Date()
   }
 
+  /// Inserts a player at a specific position in the bench order
+  func insertPlayer(_ playerId: UUID, at index: Int) {
+    guard !playerOrder.contains(playerId) else { return }
+    let safeIndex = min(max(0, index), playerOrder.count)
+    playerOrder.insert(playerId, at: safeIndex)
+    updatedDate = Date()
+  }
+
   /// Removes a player from the bench
   func removePlayer(_ playerId: UUID) {
     playerOrder.removeAll { $0 == playerId }
