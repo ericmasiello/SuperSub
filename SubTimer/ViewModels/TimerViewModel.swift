@@ -29,6 +29,8 @@ class TimerViewModel {
       self?.elapsedTime += 1
       self?.onTimerTick?()
     }
+    // ensures timer keeps counting even when scrolling
+    RunLoop.current.add(timer!, forMode: .common)
   }
 
   func pauseTimer() {
