@@ -48,6 +48,7 @@ struct ActivePlayerRowView: View {
       .cornerRadius(8)
     }
     .buttonStyle(.plain)
+    .accessibilityIdentifier("player.row.active")
   }
 }
 

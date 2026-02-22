@@ -5,30 +5,91 @@
 //  Created by Eric Masiello on 2/13/26.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
 struct SubTimerApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Player.self,
-            AppConfiguration.self,
-            Session.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .automatic)
+  var sharedModelContainer: ModelContainer = {
+    let schema = Schema([
+      Player.self,
+      AppConfiguration.self,
+      Session.self,
+    ])
 
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    // Use in-memory storage for UI testing
+    let isUITesting = CommandLine.arguments.contains("--uitesting")
+    let modelConfiguration = ModelConfiguration(
+      schema: schema,
+      isStoredInMemoryOnly: isUITesting,
+      cloudKitDatabase: .none
+    )
 
-    var body: some Scene {
-        WindowGroup {
-            MainTabView()
-        }
-        .modelContainer(sharedModelContainer)
+    do {
+      let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+
+      // Add test data when in UI testing mode
+      if isUITesting {
+        setupTestData(in: container)
+      }
+
+      return container
+    } catch {
+      fatalError("Could not create ModelContainer: \(error)")
     }
+  }()
+
+  var body: some Scene {
+    WindowGroup {
+      MainTabView()
+    }
+    .modelContainer(sharedModelContainer)
+  }
+
+  // MARK: - Test Data Setup
+
+  private static func setupTestData(in container: ModelContainer) {
+    let context = ModelContext(container)
+
+    // Create test players
+    let player1 = Player(name: "Alice Johnson")
+    player1.status = .active
+    player1.currentPlayDuration = 120
+    player1.totalPlayTime = 300
+
+    let player2 = Player(name: "Bob Smith")
+    player2.status = .active
+    player2.currentPlayDuration = 90
+    player2.totalPlayTime = 250
+
+    let player3 = Player(name: "Charlie Brown")
+    player3.status = .benched
+    player3.totalPlayTime = 180
+
+    let player4 = Player(name: "Diana Prince")
+    player4.status = .benched
+    player4.totalPlayTime = 200
+
+    let player5 = Player(name: "Eve Martinez")
+    player5.status = .temporarilyOut
+    player5.totalPlayTime = 150
+
+    context.insert(player1)
+    context.insert(player2)
+    context.insert(player3)
+    context.insert(player4)
+    context.insert(player5)
+
+    // Create test configuration
+    let config = AppConfiguration()
+    config.preferredPlayTimeSeconds = 120
+    config.activePlayersCount = 5
+    context.insert(config)
+
+    do {
+      try context.save()
+    } catch {
+      print("Failed to save test data: \(error)")
+    }
+  }
 }
