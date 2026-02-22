@@ -56,6 +56,7 @@ struct TimerView: View {
   @State var showingManualSubstitution = false
   @State var selectedPlayerToSubOut: Player?
   @State var showingPlayerActions: Player?
+  @State var nextBenchOrder = 1
 
   var configuration: AppConfiguration {
     if let config = configurations.first {
@@ -74,7 +75,12 @@ struct TimerView: View {
 
   var benchedPlayers: [Player] {
     players.filter { $0.status == .benched }
-      .sorted(by: { $0.benchedAtTime < $1.benchedAtTime })
+      .sorted(by: {
+        if $0.benchOrder == $1.benchOrder {
+          return $0.sortOrder < $1.sortOrder
+        }
+        return $0.benchOrder < $1.benchOrder
+      })
   }
 
   var temporarilyOutPlayers: [Player] {
@@ -352,7 +358,8 @@ extension TimerView {
     let timePlayedThisSegment = timerElapsed - subOut.activatedAtTime
     subOut.totalPlayTime += timePlayedThisSegment
     subOut.status = .benched
-    subOut.benchedAtTime = timerElapsed
+    subOut.benchOrder = nextBenchOrder
+    nextBenchOrder += 1
     subOut.currentPlayDuration = 0
 
     // Set when the new player became active (will be 0 after timer reset)
@@ -395,9 +402,9 @@ extension TimerView {
   }
 
   func returnPlayerToBench(_ player: Player) {
-    guard let timerElapsed = timerViewModel?.elapsedTime else { return }
     player.status = .benched
-    player.benchedAtTime = timerElapsed
+    player.benchOrder = nextBenchOrder
+    nextBenchOrder += 1
   }
 
   // MARK: - Session & Feedback
