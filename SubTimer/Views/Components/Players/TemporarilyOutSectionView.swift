@@ -25,21 +25,17 @@ struct TemporarilyOutSectionView: View {
 
       // Content
 
-      List {
+      LazyVStack(spacing: 8) {
         ForEach(players) { player in
           TemporarilyOutPlayerRowView(
             player: player,
             onReturnToBench: { onReturnToBench(player) }
           )
-          .listRowInsets(EdgeInsets())
-          .listRowSeparator(.hidden)
-          .listRowBackground(
+          .padding(.horizontal, 4)
+          .background(
             RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.1)))
         }
       }
-      .listStyle(.plain)
-      .listRowSpacing(8)
-      .frame(height: CGFloat(players.count) * 80)
 
     }
   }

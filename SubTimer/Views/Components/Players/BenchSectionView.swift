@@ -67,7 +67,7 @@ struct BenchSectionView: View {
         .environment(\.editMode, .constant(.active))
         .frame(height: CGFloat(players.count) * 80)
       } else {
-        List {
+        LazyVStack(spacing: 8) {
           ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
             BenchPlayerRowView(
               player: player,
@@ -76,18 +76,14 @@ struct BenchSectionView: View {
               onTap: { onPlayerTap(player) },
               onActivate: { onActivatePlayer(player) }
             )
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-            .listRowBackground(
+            .padding(.horizontal, 4)
+            .background(
               index == 0
                 ? RoundedRectangle(cornerRadius: 12).fill(Color.green.opacity(0.1))
                 : RoundedRectangle(cornerRadius: 12).fill(
                   Color(uiColor: .secondarySystemBackground)))
           }
         }
-        .listStyle(.plain)
-        .listRowSpacing(8)
-        .frame(height: CGFloat(players.count) * 80)
       }
     }
   }

@@ -39,25 +39,21 @@ struct ActivePlayersSectionView: View {
       if players.isEmpty {
         emptyStateView
       } else {
-        List {
+        LazyVStack(spacing: 8) {
           ForEach(players) { player in
             ActivePlayerRowView(
               player: player,
               isNextToSubOut: isNextToSubOut(player),
               onTap: { onPlayerTap(player) }
             )
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-            .listRowBackground(
+            .padding(.horizontal, 4)
+            .background(
               isNextToSubOut(player)
                 ? RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.1))
                 : RoundedRectangle(cornerRadius: 12).fill(
                   Color(uiColor: .secondarySystemBackground)))
           }
         }
-        .listStyle(.plain)
-        .listRowSpacing(8)
-        .frame(height: CGFloat(players.count) * 80)
       }
     }
   }
