@@ -16,6 +16,7 @@ struct BenchSectionView: View {
   let maxActiveCount: Int
   let onPlayerTap: (Player) -> Void
   let onActivatePlayer: (Player) -> Void
+  let onReorder: (([Player]) -> Void)?
 
   // MARK: - Computed Properties
 
@@ -40,6 +41,25 @@ struct BenchSectionView: View {
       // Content
       if players.isEmpty {
         emptyStateView
+      } else if onReorder != nil {
+        List {
+          ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+            BenchPlayerRowView(
+              player: player,
+              isNextUp: index == 0,
+              canActivate: canActivate,
+              onTap: { onPlayerTap(player) },
+              onActivate: { onActivatePlayer(player) }
+            )
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+          }
+          .onMove(perform: movePlayer)
+        }
+        .listStyle(.plain)
+        .environment(\.editMode, .constant(.active))
+        .frame(height: CGFloat(players.count) * 80)
       } else {
         ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
           BenchPlayerRowView(
@@ -52,6 +72,14 @@ struct BenchSectionView: View {
         }
       }
     }
+  }
+
+  // MARK: - Helper Methods
+
+  private func movePlayer(from source: IndexSet, to destination: Int) {
+    var reorderedPlayers = players
+    reorderedPlayers.move(fromOffsets: source, toOffset: destination)
+    onReorder?(reorderedPlayers)
   }
 
   // MARK: - Helper Views
@@ -78,7 +106,8 @@ struct BenchSectionView: View {
     activePlayersCount: 4,
     maxActiveCount: 4,
     onPlayerTap: { player in print("Tapped: \(player.name)") },
-    onActivatePlayer: { player in print("Activate: \(player.name)") }
+    onActivatePlayer: { player in print("Activate: \(player.name)") },
+    onReorder: { players in print("Reordered: \(players.map { $0.name })") }
   )
   .padding()
 }
@@ -89,7 +118,8 @@ struct BenchSectionView: View {
     activePlayersCount: 4,
     maxActiveCount: 4,
     onPlayerTap: { _ in },
-    onActivatePlayer: { _ in }
+    onActivatePlayer: { _ in },
+    onReorder: nil
   )
   .padding()
 }
@@ -103,7 +133,8 @@ struct BenchSectionView: View {
     activePlayersCount: 2,
     maxActiveCount: 4,
     onPlayerTap: { _ in },
-    onActivatePlayer: { _ in }
+    onActivatePlayer: { _ in },
+    onReorder: { players in print("Reordered") }
   )
   .padding()
 }
@@ -117,7 +148,8 @@ struct BenchSectionView: View {
     activePlayersCount: 4,
     maxActiveCount: 4,
     onPlayerTap: { _ in },
-    onActivatePlayer: { _ in }
+    onActivatePlayer: { _ in },
+    onReorder: nil
   )
   .padding()
 }
@@ -130,7 +162,8 @@ struct BenchSectionView: View {
     activePlayersCount: 3,
     maxActiveCount: 4,
     onPlayerTap: { _ in },
-    onActivatePlayer: { _ in }
+    onActivatePlayer: { _ in },
+    onReorder: nil
   )
   .padding()
 }

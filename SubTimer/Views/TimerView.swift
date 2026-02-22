@@ -179,7 +179,8 @@ struct TimerView: View {
       activePlayersCount: activePlayers.count,
       maxActiveCount: configuration.activePlayersCount,
       onPlayerTap: { player in showingPlayerActions = player },
-      onActivatePlayer: activatePlayer
+      onActivatePlayer: activatePlayer,
+      onReorder: reorderBench
     )
   }
 
@@ -405,6 +406,16 @@ extension TimerView {
     player.status = .benched
     player.benchOrder = nextBenchOrder
     nextBenchOrder += 1
+  }
+
+  func reorderBench(_ reorderedPlayers: [Player]) {
+    // Reset benchOrder values based on the new manual order
+    // First player gets benchOrder = 1, second gets 2, etc.
+    for (index, player) in reorderedPlayers.enumerated() {
+      player.benchOrder = index + 1
+    }
+    // Update nextBenchOrder to be one more than the highest benchOrder
+    nextBenchOrder = reorderedPlayers.count + 1
   }
 
   // MARK: - Session & Feedback
