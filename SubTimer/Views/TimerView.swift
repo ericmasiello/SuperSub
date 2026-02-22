@@ -136,7 +136,8 @@ struct TimerView: View {
   private var timerControlsSection: some View {
     TimerControlsView(
       isRunning: timerViewModel?.isRunning ?? false,
-      onToggle: toggleTimer
+      onToggle: toggleTimer,
+      onReset: resetTimer
     )
   }
 
@@ -270,6 +271,11 @@ extension TimerView {
       vm.startTimer()
     }
   }
+  
+  func resetTimer() {
+    guard let vm = timerViewModel else { return }
+    vm.resetTimer()
+  }
 
   private func autoActivateInitialPlayersIfNeeded() {
     guard activePlayers.isEmpty else { return }
@@ -371,7 +377,57 @@ extension TimerView {
   }
 }
 
-#Preview {
+#Preview("Empty State") {
   TimerView()
     .modelContainer(for: [Player.self, AppConfiguration.self, Session.self], inMemory: true)
+}
+
+#Preview("Main Timer View") {
+  let container = try! ModelContainer(
+    for: Player.self, AppConfiguration.self, Session.self,
+    configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+  )
+
+  let context = container.mainContext
+
+  // Create configuration
+  let config = AppConfiguration()
+  config.activePlayersCount = 3
+  config.preferredPlayTimeSeconds = 180
+  context.insert(config)
+
+  // Create sample players
+  let player1 = Player(name: "Alice", sortOrder: 0)
+  player1.status = .active
+  player1.currentPlayDuration = 120
+
+  let player2 = Player(name: "Bob", sortOrder: 1)
+  player2.status = .active
+  player2.currentPlayDuration = 95
+
+  let player3 = Player(name: "Charlie", sortOrder: 2)
+  player3.status = .active
+  player3.currentPlayDuration = 110
+
+  let player4 = Player(name: "Diana", sortOrder: 3)
+  player4.status = .benched
+  player4.totalPlayTime = 85
+
+  let player5 = Player(name: "Eve", sortOrder: 4)
+  player5.status = .benched
+  player5.totalPlayTime = 60
+
+  let player6 = Player(name: "Frank", sortOrder: 5)
+  player6.status = .temporarilyOut
+  player6.totalPlayTime = 75
+
+  context.insert(player1)
+  context.insert(player2)
+  context.insert(player3)
+  context.insert(player4)
+  context.insert(player5)
+  context.insert(player6)
+
+  return TimerView()
+    .modelContainer(container)
 }

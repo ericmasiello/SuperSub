@@ -35,6 +35,12 @@ class TimerViewModel {
     timer = nil
   }
 
+  func resetTimer() {
+    isRunning = false
+    timer?.invalidate()
+    timer = nil
+  }
+
   deinit {
     timer?.invalidate()
   }
