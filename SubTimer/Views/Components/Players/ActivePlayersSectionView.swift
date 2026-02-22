@@ -48,13 +48,16 @@ struct ActivePlayersSectionView: View {
             )
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
-            .listRowBackground(isNextToSubOut(player) ?
-                               RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.1))
-                               : RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))          
+            .listRowBackground(
+              isNextToSubOut(player)
+                ? RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.1))
+                : RoundedRectangle(cornerRadius: 12).fill(
+                  Color(uiColor: .secondarySystemBackground)))
           }
         }
         .listStyle(.plain)
         .listRowSpacing(8)
+        .frame(height: CGFloat(players.count) * 80)
       }
     }
   }

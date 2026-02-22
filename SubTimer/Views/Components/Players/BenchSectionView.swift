@@ -53,10 +53,12 @@ struct BenchSectionView: View {
             )
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
-            .listRowBackground(index == 0 ?
-                               RoundedRectangle(cornerRadius: 12).fill(Color.green.opacity(0.1))
-                               : RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
-            
+            .listRowBackground(
+              index == 0
+                ? RoundedRectangle(cornerRadius: 12).fill(Color.green.opacity(0.1))
+                : RoundedRectangle(cornerRadius: 12).fill(
+                  Color(uiColor: .secondarySystemBackground)))
+
           }
           .onMove(perform: movePlayer)
         }
@@ -65,15 +67,27 @@ struct BenchSectionView: View {
         .environment(\.editMode, .constant(.active))
         .frame(height: CGFloat(players.count) * 80)
       } else {
-        ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
-          BenchPlayerRowView(
-            player: player,
-            isNextUp: index == 0,
-            canActivate: canActivate,
-            onTap: { onPlayerTap(player) },
-            onActivate: { onActivatePlayer(player) }
-          )
+        List {
+          ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+            BenchPlayerRowView(
+              player: player,
+              isNextUp: index == 0,
+              canActivate: canActivate,
+              onTap: { onPlayerTap(player) },
+              onActivate: { onActivatePlayer(player) }
+            )
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(
+              index == 0
+                ? RoundedRectangle(cornerRadius: 12).fill(Color.green.opacity(0.1))
+                : RoundedRectangle(cornerRadius: 12).fill(
+                  Color(uiColor: .secondarySystemBackground)))
+          }
         }
+        .listStyle(.plain)
+        .listRowSpacing(8)
+        .frame(height: CGFloat(players.count) * 80)
       }
     }
   }

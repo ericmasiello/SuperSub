@@ -24,7 +24,7 @@ struct TemporarilyOutSectionView: View {
         .bold()
 
       // Content
-      
+
       List {
         ForEach(players) { player in
           TemporarilyOutPlayerRowView(
@@ -34,13 +34,13 @@ struct TemporarilyOutSectionView: View {
           .listRowInsets(EdgeInsets())
           .listRowSeparator(.hidden)
           .listRowBackground(
-                             RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.1))
-                             )
+            RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.1)))
         }
       }
       .listStyle(.plain)
       .listRowSpacing(8)
-    
+      .frame(height: CGFloat(players.count) * 80)
+
     }
   }
 }
