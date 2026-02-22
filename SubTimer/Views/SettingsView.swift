@@ -52,6 +52,7 @@ struct SettingsView: View {
   @Query(sort: \Player.sortOrder) private var players: [Player]
   @Query private var configurations: [AppConfiguration]
   @Query(sort: \Session.startDate, order: .reverse) private var sessions: [Session]
+  @Query private var benchManagers: [BenchManager]
 
   @State private var showingAddPlayer = false
   @State private var newPlayerName = ""
@@ -66,6 +67,16 @@ struct SettingsView: View {
       let newConfig = AppConfiguration()
       modelContext.insert(newConfig)
       return newConfig
+    }
+  }
+  
+  private var benchManager: BenchManager {
+    if let manager = benchManagers.first {
+      return manager
+    } else {
+      let newManager = BenchManager()
+      modelContext.insert(newManager)
+      return newManager
     }
   }
 
@@ -261,8 +272,9 @@ extension SettingsView {
       player.activatedAtTime = 0
       player.currentPlayDuration = 0
       player.totalPlayTime = 0
-      player.benchOrder = 0
     }
+    
+    benchManager.clear()
   }
 }
 

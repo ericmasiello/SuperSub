@@ -51,12 +51,12 @@ struct TimerView: View {
   @Query(sort: \Player.sortOrder) var players: [Player]
   @Query private var configurations: [AppConfiguration]
   @Query(sort: \Session.startDate, order: .reverse) var sessions: [Session]
+  @Query private var benchManagers: [BenchManager]
 
   @State var timerViewModel: TimerViewModel?
   @State var showingManualSubstitution = false
   @State var selectedPlayerToSubOut: Player?
   @State var showingPlayerActions: Player?
-  @State var nextBenchOrder = 1
 
   var configuration: AppConfiguration {
     if let config = configurations.first {
@@ -68,19 +68,40 @@ struct TimerView: View {
     }
   }
 
+  var benchManager: BenchManager {
+    if let manager = benchManagers.first {
+      return manager
+    } else {
+      let newManager = BenchManager()
+      modelContext.insert(newManager)
+      return newManager
+    }
+  }
+
   var activePlayers: [Player] {
     players.filter { $0.status == .active }
       .sorted(by: { $0.currentPlayDuration > $1.currentPlayDuration })
   }
 
   var benchedPlayers: [Player] {
-    players.filter { $0.status == .benched }
-      .sorted(by: {
-        if $0.benchOrder == $1.benchOrder {
-          return $0.sortOrder < $1.sortOrder
-        }
-        return $0.benchOrder < $1.benchOrder
-      })
+    let benched = players.filter { $0.status == .benched }
+    let manager = benchManager
+
+    // Sort by bench order, then by sortOrder for players not in the bench order
+    return benched.sorted { player1, player2 in
+      let pos1 = manager.position(of: player1.id)
+      let pos2 = manager.position(of: player2.id)
+
+      if let p1 = pos1, let p2 = pos2 {
+        return p1 < p2
+      } else if pos1 != nil {
+        return true
+      } else if pos2 != nil {
+        return false
+      } else {
+        return player1.sortOrder < player2.sortOrder
+      }
+    }
   }
 
   var temporarilyOutPlayers: [Player] {
@@ -359,8 +380,7 @@ extension TimerView {
     let timePlayedThisSegment = timerElapsed - subOut.activatedAtTime
     subOut.totalPlayTime += timePlayedThisSegment
     subOut.status = .benched
-    subOut.benchOrder = nextBenchOrder
-    nextBenchOrder += 1
+    benchManager.addPlayer(subOut.id)
     subOut.currentPlayDuration = 0
 
     // Set when the new player became active (will be 0 after timer reset)
@@ -404,18 +424,13 @@ extension TimerView {
 
   func returnPlayerToBench(_ player: Player) {
     player.status = .benched
-    player.benchOrder = nextBenchOrder
-    nextBenchOrder += 1
+    benchManager.addPlayer(player.id)
   }
 
   func reorderBench(_ reorderedPlayers: [Player]) {
-    // Reset benchOrder values based on the new manual order
-    // First player gets benchOrder = 1, second gets 2, etc.
-    for (index, player) in reorderedPlayers.enumerated() {
-      player.benchOrder = index + 1
-    }
-    // Update nextBenchOrder to be one more than the highest benchOrder
-    nextBenchOrder = reorderedPlayers.count + 1
+    // Update bench manager with new order
+    benchManager.playerOrder = reorderedPlayers.map { $0.id }
+    benchManager.updatedDate = Date()
   }
 
   // MARK: - Session & Feedback
