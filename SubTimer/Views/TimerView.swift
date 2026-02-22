@@ -69,10 +69,12 @@ struct TimerView: View {
 
   var activePlayers: [Player] {
     players.filter { $0.status == .active }
+      .sorted(by: { $0.currentPlayDuration > $1.currentPlayDuration })
   }
 
   var benchedPlayers: [Player] {
     players.filter { $0.status == .benched }
+      .sorted(by: { $0.benchedAtTime < $1.benchedAtTime })
   }
 
   var temporarilyOutPlayers: [Player] {
@@ -350,6 +352,7 @@ extension TimerView {
     let timePlayedThisSegment = timerElapsed - subOut.activatedAtTime
     subOut.totalPlayTime += timePlayedThisSegment
     subOut.status = .benched
+    subOut.benchedAtTime = timerElapsed
     subOut.currentPlayDuration = 0
 
     // Set when the new player became active (will be 0 after timer reset)
@@ -392,7 +395,9 @@ extension TimerView {
   }
 
   func returnPlayerToBench(_ player: Player) {
+    guard let timerElapsed = timerViewModel?.elapsedTime else { return }
     player.status = .benched
+    player.benchedAtTime = timerElapsed
   }
 
   // MARK: - Session & Feedback

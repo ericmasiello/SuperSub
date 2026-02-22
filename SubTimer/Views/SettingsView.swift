@@ -261,6 +261,7 @@ extension SettingsView {
       player.activatedAtTime = 0
       player.currentPlayDuration = 0
       player.totalPlayTime = 0
+      player.benchedAtTime = 0
     }
   }
 }
