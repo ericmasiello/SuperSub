@@ -128,7 +128,7 @@ struct TimerView: View {
                     mainTimerView
                 }
             }
-            .navigationTitle("SubTimer")
+            .navigationTitle("Super Sub")
             .onAppear {
                 // Initialize cached bench manager first
                 _ = benchManager
