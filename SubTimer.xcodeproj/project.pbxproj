@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4D4D7A5D2F54A87600499044 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D4D7A5C2F54A87600499044 /* WidgetKit.framework */; };
+		4D4D7A5F2F54A87600499044 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D4D7A5E2F54A87600499044 /* SwiftUI.framework */; };
+		4D4D7A702F54A87700499044 /* ActiveBenchExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4D4D7A5A2F54A87600499044 /* ActiveBenchExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		4D0DDD962F3F38E500DD633E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +27,36 @@
 			remoteGlobalIDString = 4D0DDD832F3F38E400DD633E;
 			remoteInfo = SubTimer;
 		};
+		4D4D7A6E2F54A87700499044 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4D0DDD7C2F3F38E400DD633E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4D4D7A592F54A87600499044;
+			remoteInfo = ActiveBenchExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		4D4D7A712F54A87700499044 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				4D4D7A702F54A87700499044 /* ActiveBenchExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		4D0DDD842F3F38E400DD633E /* SubTimer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SubTimer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D0DDD952F3F38E500DD633E /* SubTimerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SubTimerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D0DDD9F2F3F38E500DD633E /* SubTimerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SubTimerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4D4D7A5A2F54A87600499044 /* ActiveBenchExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ActiveBenchExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4D4D7A5C2F54A87600499044 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		4D4D7A5E2F54A87600499044 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -34,6 +64,20 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+			);
+			target = 4D0DDD832F3F38E400DD633E /* SubTimer */;
+		};
+		4D4D7A752F54A87700499044 /* Exceptions for "ActiveBench" folder in "ActiveBenchExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4D4D7A592F54A87600499044 /* ActiveBenchExtension */;
+		};
+		4D4D7A812F54B8AB00499044 /* Exceptions for "ActiveBench" folder in "SubTimer" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ActiveBenchAttributes.swift,
 			);
 			target = 4D0DDD832F3F38E400DD633E /* SubTimer */;
 		};
@@ -56,6 +100,15 @@
 		4D0DDDA22F3F38E500DD633E /* SubTimerUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SubTimerUITests;
+			sourceTree = "<group>";
+		};
+		4D4D7A602F54A87600499044 /* ActiveBench */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4D4D7A812F54B8AB00499044 /* Exceptions for "ActiveBench" folder in "SubTimer" target */,
+				4D4D7A752F54A87700499044 /* Exceptions for "ActiveBench" folder in "ActiveBenchExtension" target */,
+			);
+			path = ActiveBench;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -82,6 +135,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4D4D7A572F54A87600499044 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4D4D7A5F2F54A87600499044 /* SwiftUI.framework in Frameworks */,
+				4D4D7A5D2F54A87600499044 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -91,6 +153,8 @@
 				4D0DDD862F3F38E400DD633E /* SubTimer */,
 				4D0DDD982F3F38E500DD633E /* SubTimerTests */,
 				4D0DDDA22F3F38E500DD633E /* SubTimerUITests */,
+				4D4D7A602F54A87600499044 /* ActiveBench */,
+				4D4D7A5B2F54A87600499044 /* Frameworks */,
 				4D0DDD852F3F38E400DD633E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,8 +165,18 @@
 				4D0DDD842F3F38E400DD633E /* SubTimer.app */,
 				4D0DDD952F3F38E500DD633E /* SubTimerTests.xctest */,
 				4D0DDD9F2F3F38E500DD633E /* SubTimerUITests.xctest */,
+				4D4D7A5A2F54A87600499044 /* ActiveBenchExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4D4D7A5B2F54A87600499044 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4D4D7A5C2F54A87600499044 /* WidgetKit.framework */,
+				4D4D7A5E2F54A87600499044 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -115,10 +189,12 @@
 				4D0DDD802F3F38E400DD633E /* Sources */,
 				4D0DDD812F3F38E400DD633E /* Frameworks */,
 				4D0DDD822F3F38E400DD633E /* Resources */,
+				4D4D7A712F54A87700499044 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				4D4D7A6F2F54A87700499044 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4D0DDD862F3F38E400DD633E /* SubTimer */,
@@ -176,6 +252,28 @@
 			productReference = 4D0DDD9F2F3F38E500DD633E /* SubTimerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		4D4D7A592F54A87600499044 /* ActiveBenchExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4D4D7A742F54A87700499044 /* Build configuration list for PBXNativeTarget "ActiveBenchExtension" */;
+			buildPhases = (
+				4D4D7A562F54A87600499044 /* Sources */,
+				4D4D7A572F54A87600499044 /* Frameworks */,
+				4D4D7A582F54A87600499044 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4D4D7A602F54A87600499044 /* ActiveBench */,
+			);
+			name = ActiveBenchExtension;
+			packageProductDependencies = (
+			);
+			productName = ActiveBenchExtension;
+			productReference = 4D4D7A5A2F54A87600499044 /* ActiveBenchExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -183,7 +281,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2620;
+				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					4D0DDD832F3F38E400DD633E = {
@@ -196,6 +294,9 @@
 					4D0DDD9E2F3F38E500DD633E = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 4D0DDD832F3F38E400DD633E;
+					};
+					4D4D7A592F54A87600499044 = {
+						CreatedOnToolsVersion = 26.3;
 					};
 				};
 			};
@@ -216,6 +317,7 @@
 				4D0DDD832F3F38E400DD633E /* SubTimer */,
 				4D0DDD942F3F38E500DD633E /* SubTimerTests */,
 				4D0DDD9E2F3F38E500DD633E /* SubTimerUITests */,
+				4D4D7A592F54A87600499044 /* ActiveBenchExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -236,6 +338,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4D0DDD9D2F3F38E500DD633E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4D4D7A582F54A87600499044 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -266,6 +375,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4D4D7A562F54A87600499044 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -279,6 +395,11 @@
 			target = 4D0DDD832F3F38E400DD633E /* SubTimer */;
 			targetProxy = 4D0DDDA02F3F38E500DD633E /* PBXContainerItemProxy */;
 		};
+		4D4D7A6F2F54A87700499044 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4D4D7A592F54A87600499044 /* ActiveBenchExtension */;
+			targetProxy = 4D4D7A6E2F54A87700499044 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -287,6 +408,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SubTimer/SubTimer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = R6SSQ5A38J;
@@ -332,6 +454,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SubTimer/SubTimer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = R6SSQ5A38J;
@@ -590,6 +713,71 @@
 			};
 			name = Release;
 		};
+		4D4D7A722F54A87700499044 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R6SSQ5A38J;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ActiveBench/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ActiveBench;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.synbydesign.SubTimer.ActiveBench;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4D4D7A732F54A87700499044 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R6SSQ5A38J;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ActiveBench/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ActiveBench;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.synbydesign.SubTimer.ActiveBench;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -625,6 +813,15 @@
 			buildConfigurations = (
 				4D0DDDB12F3F38E500DD633E /* Debug */,
 				4D0DDDB22F3F38E500DD633E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4D4D7A742F54A87700499044 /* Build configuration list for PBXNativeTarget "ActiveBenchExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4D4D7A722F54A87700499044 /* Debug */,
+				4D4D7A732F54A87700499044 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
