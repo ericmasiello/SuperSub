@@ -17,6 +17,7 @@ final class Player {
     var totalPlayTime: TimeInterval
     var status: PlayerStatus
     var sortOrder: Int
+    var activatedAtTime: TimeInterval
 
     init(
         id: UUID = UUID(),
@@ -25,7 +26,8 @@ final class Player {
         currentPlayDuration: TimeInterval = 0,
         totalPlayTime: TimeInterval = 0,
         status: PlayerStatus = .benched,
-        sortOrder: Int = 0
+        sortOrder: Int = 0,
+        activatedAtTime: TimeInterval = 0
     ) {
         self.id = id
         self.name = name
@@ -34,6 +36,7 @@ final class Player {
         self.totalPlayTime = totalPlayTime
         self.status = status
         self.sortOrder = sortOrder
+        self.activatedAtTime = activatedAtTime
     }
 }
 

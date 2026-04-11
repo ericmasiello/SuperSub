@@ -9,7 +9,6 @@ import Foundation
 
 /// Utility for consistent time formatting across the app
 enum TimeFormatter {
-
     /// Formats a TimeInterval into a readable string (M:SS or H:MM:SS)
     /// - Parameter timeInterval: The time interval in seconds
     /// - Returns: Formatted string like "3:45" or "1:23:45"
@@ -65,7 +64,8 @@ enum TimeFormatter {
         guard components.count == 2,
               let minutes = Int(components[0]),
               let seconds = Int(components[1]),
-              seconds < 60 else {
+              seconds < 60
+        else {
             return nil
         }
         return (minutes * 60) + seconds
