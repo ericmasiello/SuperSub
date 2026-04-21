@@ -69,6 +69,7 @@ struct TimerView: View {
   @State var showingPlayerActions: Player?
   @State private var benchOrder: [UUID] = []
   @State private var cachedBenchManager: BenchManager?
+  @State private var showPinnedButton = false
 
   var configuration: AppConfiguration {
     if let config = configurations.first {
@@ -184,6 +185,14 @@ struct TimerView: View {
     }
     .safeAreaInset(edge: .bottom) {
       pinnedSubstituteButton
+        .opacity(showPinnedButton ? 1 : 0)
+        .offset(y: showPinnedButton ? 0 : 40)
+    }
+    .onAppear {
+      guard !showPinnedButton else { return }
+      withAnimation(.easeOut(duration: 0.45).delay(0.15)) {
+        showPinnedButton = true
+      }
     }
   }
 
