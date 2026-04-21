@@ -179,10 +179,24 @@ struct TimerView: View {
         if !temporarilyOutPlayers.isEmpty {
           temporarilyOutSection
         }
-        substituteButtonSection
       }
       .padding()
     }
+    .safeAreaInset(edge: .bottom) {
+      pinnedSubstituteButton
+    }
+  }
+
+  // MARK: - Pinned Substitute Button
+
+  private var pinnedSubstituteButton: some View {
+    VStack(spacing: 0) {
+      Divider()
+      substituteButtonSection
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+    .glassEffect(.regular.interactive(), in: .rect)
   }
 
   // MARK: - Timer Controls

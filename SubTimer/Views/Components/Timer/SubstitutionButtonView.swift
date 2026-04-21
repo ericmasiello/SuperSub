@@ -20,13 +20,13 @@ struct SubstitutionButtonView: View {
         Button(action: onSubstitute) {
             HStack {
                 Image(systemName: "arrow.left.arrow.right.circle.fill")
-                    .font(.title2)
+                    .font(.headline)
                 Text("Substitute")
-                    .font(.title2)
+                    .font(.headline)
                     .bold()
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
+            .padding(.vertical, 12)
             .background(canPerformSubstitution ? Color.blue : Color.gray.opacity(0.3))
             .foregroundStyle(.white)
             .cornerRadius(12)
