@@ -11,42 +11,61 @@ import SwiftData
 @Observable
 class TimerViewModel {
     var isRunning = false
-    var elapsedTime: TimeInterval = 0
+    private(set) var elapsedTime: TimeInterval = 0
     var onTimerTick: (() -> Void)?
 
-    private var timer: Timer?
+    private(set) var timerStartDate: Date?
+    private(set) var accumulatedTime: TimeInterval = 0
+
+    private var displayTimer: Timer?
     private var players: [Player]
 
     init(players: [Player]) {
         self.players = players
     }
 
+    private func computeElapsedTime() -> TimeInterval {
+        guard let start = timerStartDate else { return accumulatedTime }
+        return accumulatedTime + Date().timeIntervalSince(start)
+    }
+
     func startTimer() {
         guard !isRunning else { return }
 
         isRunning = true
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.elapsedTime += 1
-            self?.onTimerTick?()
+        timerStartDate = Date()
+        elapsedTime = computeElapsedTime()
+
+        displayTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.elapsedTime = self.computeElapsedTime()
+            self.onTimerTick?()
         }
         // ensures timer keeps counting even when scrolling
-        RunLoop.current.add(timer!, forMode: .common)
+        RunLoop.current.add(displayTimer!, forMode: .common)
     }
 
     func pauseTimer() {
+        if let start = timerStartDate {
+            accumulatedTime += Date().timeIntervalSince(start)
+        }
         isRunning = false
-        timer?.invalidate()
-        timer = nil
+        timerStartDate = nil
+        elapsedTime = accumulatedTime
+        displayTimer?.invalidate()
+        displayTimer = nil
     }
 
     func resetTimer() {
         isRunning = false
+        accumulatedTime = 0
+        timerStartDate = nil
         elapsedTime = 0
-        timer?.invalidate()
-        timer = nil
+        displayTimer?.invalidate()
+        displayTimer = nil
     }
 
     deinit {
-        timer?.invalidate()
+        displayTimer?.invalidate()
     }
 }
