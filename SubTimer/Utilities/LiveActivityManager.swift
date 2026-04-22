@@ -32,6 +32,7 @@ class LiveActivityManager {
     isRunning: Bool,
     elapsedTime: TimeInterval,
     preferredPlayTimeSeconds: Int,
+    timerRefDate: Date,
     activePlayersCount: Int,
     benchedPlayersCount: Int
   ) {
@@ -48,6 +49,7 @@ class LiveActivityManager {
         isRunning: isRunning,
         elapsedTime: elapsedTime,
         preferredPlayTimeSeconds: preferredPlayTimeSeconds,
+        timerRefDate: timerRefDate,
         activePlayersCount: activePlayersCount,
         benchedPlayersCount: benchedPlayersCount
       )
@@ -59,14 +61,18 @@ class LiveActivityManager {
       isRunning: isRunning,
       elapsedTime: elapsedTime,
       preferredPlayTimeSeconds: preferredPlayTimeSeconds,
+      timerRefDate: timerRefDate,
       activePlayersCount: activePlayersCount,
       benchedPlayersCount: benchedPlayersCount
     )
 
     do {
+      let staleDate = computeStaleDate(
+        isRunning: isRunning, timerRefDate: timerRefDate,
+        preferredPlayTimeSeconds: preferredPlayTimeSeconds)
       currentActivity = try Activity.request(
         attributes: attributes,
-        content: ActivityContent(state: contentState, staleDate: nil)
+        content: ActivityContent(state: contentState, staleDate: staleDate)
       )
       print("✅ Live Activity started successfully - Time: \(Int(elapsedTime))s")
     } catch {
@@ -85,6 +91,7 @@ class LiveActivityManager {
     isRunning: Bool,
     elapsedTime: TimeInterval,
     preferredPlayTimeSeconds: Int,
+    timerRefDate: Date,
     activePlayersCount: Int,
     benchedPlayersCount: Int
   ) {
@@ -101,15 +108,19 @@ class LiveActivityManager {
       isRunning: isRunning,
       elapsedTime: elapsedTime,
       preferredPlayTimeSeconds: preferredPlayTimeSeconds,
+      timerRefDate: timerRefDate,
       activePlayersCount: activePlayersCount,
       benchedPlayersCount: benchedPlayersCount
     )
 
     Task {
+      let staleDate = computeStaleDate(
+        isRunning: isRunning, timerRefDate: timerRefDate,
+        preferredPlayTimeSeconds: preferredPlayTimeSeconds)
       await activity.update(
         ActivityContent(
           state: contentState,
-          staleDate: nil
+          staleDate: staleDate
         )
       )
       print("✅ Live Activity updated successfully")
@@ -134,5 +145,13 @@ class LiveActivityManager {
   /// Check if there's an active Live Activity
   var hasActiveActivity: Bool {
     return currentActivity != nil
+  }
+
+  private func computeStaleDate(
+    isRunning: Bool, timerRefDate: Date, preferredPlayTimeSeconds: Int
+  ) -> Date? {
+    guard isRunning, preferredPlayTimeSeconds > 0 else { return nil }
+    let overtime = timerRefDate.addingTimeInterval(TimeInterval(preferredPlayTimeSeconds))
+    return overtime > Date() ? overtime : nil
   }
 }

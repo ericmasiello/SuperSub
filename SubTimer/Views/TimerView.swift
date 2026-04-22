@@ -544,11 +544,14 @@ extension TimerView {
         sessionName = "Practice Session"
       }
 
+      let refDate = computeTimerRefDate()
+
       LiveActivityManager.shared.startActivity(
         sessionName: sessionName,
         isRunning: timerViewModel?.isRunning ?? false,
         elapsedTime: timerViewModel?.elapsedTime ?? 0,
         preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
+        timerRefDate: refDate,
         activePlayersCount: activePlayers.count,
         benchedPlayersCount: benchedPlayers.count
       )
@@ -557,14 +560,24 @@ extension TimerView {
 
   private func updateLiveActivity() {
     if #available(iOS 16.2, *) {
+      let refDate = computeTimerRefDate()
+
       LiveActivityManager.shared.updateActivity(
         isRunning: timerViewModel?.isRunning ?? false,
         elapsedTime: timerViewModel?.elapsedTime ?? 0,
         preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
+        timerRefDate: refDate,
         activePlayersCount: activePlayers.count,
         benchedPlayersCount: benchedPlayers.count
       )
     }
+  }
+
+  private func computeTimerRefDate() -> Date {
+    guard let vm = timerViewModel, let startDate = vm.timerStartDate else {
+      return Date()
+    }
+    return startDate.addingTimeInterval(-vm.accumulatedTime)
   }
 
   private func endLiveActivity() {
