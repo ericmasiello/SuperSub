@@ -33,7 +33,7 @@ struct TemporarilyOutPlayerRowView: View {
                     .font(.subheadline)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.blue)
+                    .background(Color.appPurple)
                     .foregroundStyle(.white)
                     .cornerRadius(6)
             }

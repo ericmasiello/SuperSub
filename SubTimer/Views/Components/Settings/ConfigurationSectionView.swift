@@ -38,7 +38,7 @@ struct ConfigurationSectionView: View {
                 Text(
                     "⚠️ Active players automatically adjusted to match available players (\(maxPlayers))"
                 )
-                .foregroundStyle(.orange)
+                .foregroundStyle(.appOrange)
             }
         }
     }

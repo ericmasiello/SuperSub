@@ -29,7 +29,7 @@ struct TimerControlsView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(isRunning ? Color.orange : Color.green)
+                .background(isRunning ? Color.appOrange : Color.green)
                 .foregroundStyle(.white)
                 .cornerRadius(12)
             }
