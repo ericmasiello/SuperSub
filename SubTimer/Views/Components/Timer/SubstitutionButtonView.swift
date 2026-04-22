@@ -27,7 +27,7 @@ struct SubstitutionButtonView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(canPerformSubstitution ? Color.blue : Color.gray.opacity(0.3))
+            .background(canPerformSubstitution ? Color.appPurple : Color.gray.opacity(0.3))
             .foregroundStyle(.white)
             .cornerRadius(12)
         }

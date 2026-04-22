@@ -90,7 +90,7 @@ struct ActiveBenchLiveActivity: Widget {
           VStack(alignment: .trailing, spacing: 2) {
             Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
               .font(.title2)
-              .foregroundStyle(context.state.isRunning ? .green : .orange)
+              .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
           }
         }
 
@@ -136,9 +136,9 @@ struct ActiveBenchLiveActivity: Widget {
         }
       } minimal: {
         Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
-          .foregroundStyle(context.state.isRunning ? .green : .orange)
+          .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
       }
-      .keylineTint(context.state.isRunning ? .green : .orange)
+      .keylineTint(context.state.isRunning ? .green : Color("AppOrange"))
     }
   }
 

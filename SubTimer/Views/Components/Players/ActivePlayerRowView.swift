@@ -26,7 +26,7 @@ struct ActivePlayerRowView: View {
                             .font(.headline)
                         if isNextToSubOut {
                             Image(systemName: "arrow.down.circle.fill")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(.appOrange)
                                 .font(.caption)
                         }
                     }
@@ -39,7 +39,7 @@ struct ActivePlayerRowView: View {
                 Spacer()
 
                 Image(systemName: "ellipsis.circle")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.appPurple)
             }
             .padding()
         }

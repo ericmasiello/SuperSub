@@ -49,7 +49,7 @@ struct ActivePlayersSectionView: View {
                         .padding(.horizontal, 4)
                         .background(
                             isNextToSubOut(player)
-                                ? RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.1))
+                                ? RoundedRectangle(cornerRadius: 12).fill(Color.appOrange.opacity(0.1))
                                 : RoundedRectangle(cornerRadius: 12).fill(
                                     Color(uiColor: .secondarySystemBackground)
                                 )

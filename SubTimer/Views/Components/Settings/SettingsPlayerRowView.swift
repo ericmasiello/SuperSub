@@ -32,7 +32,7 @@ struct SettingsPlayerRowView: View {
                 onEdit()
             } label: {
                 Image(systemName: "pencil")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.appPurple)
             }
             .buttonStyle(.plain)
         }
