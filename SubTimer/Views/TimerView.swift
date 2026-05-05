@@ -73,6 +73,7 @@ struct TimerView: View {
   @State private var cachedBenchManager: BenchManager?
   @State private var cachedActiveManager: ActiveManager?
   @State private var showPinnedButton = false
+  @State private var overtimeUpdateWork: DispatchWorkItem?
 
   var configuration: AppConfiguration {
     if let config = configurations.first {
@@ -438,6 +439,7 @@ extension TimerView {
     guard let vm = timerViewModel else { return }
     if vm.isRunning {
       vm.pauseTimer()
+      cancelOvertimeUpdate()
       updateLiveActivity()
     } else {
       autoActivateInitialPlayersIfNeeded()
@@ -541,9 +543,10 @@ extension TimerView {
 
     provideHapticFeedback()
     updateLiveActivity()
-  }
-
-  // MARK: - Player Status
+    if wasRunning {
+      scheduleOvertimeUpdate()
+    }
+  }  // MARK: - Player Status
 
   func activatePlayer(_ player: Player) {
     player.status = .active
@@ -638,6 +641,7 @@ extension TimerView {
         activePlayersCount: activePlayers.count,
         benchedPlayersCount: benchedPlayers.count
       )
+      scheduleOvertimeUpdate()
     }
   }
 
@@ -656,8 +660,31 @@ extension TimerView {
 
   private func endLiveActivity() {
     if #available(iOS 16.2, *) {
+      cancelOvertimeUpdate()
       LiveActivityManager.shared.endActivity()
     }
+  }
+
+  private func scheduleOvertimeUpdate() {
+    cancelOvertimeUpdate()
+
+    let preferredSeconds = configuration.preferredPlayTimeSeconds
+    guard preferredSeconds > 0 else { return }
+
+    let accumulated = timerViewModel?.accumulatedTime ?? 0
+    let delay = TimeInterval(preferredSeconds) - accumulated
+    guard delay > 0 else { return }
+
+    let work = DispatchWorkItem { [self] in
+      updateLiveActivity()
+    }
+    overtimeUpdateWork = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+  }
+
+  private func cancelOvertimeUpdate() {
+    overtimeUpdateWork?.cancel()
+    overtimeUpdateWork = nil
   }
 }
 
