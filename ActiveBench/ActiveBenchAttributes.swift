@@ -17,15 +17,19 @@ struct ActiveBenchAttributes: ActivityAttributes {
   public struct ContentState: Codable, Hashable {
     // Timer state properties
     var isRunning: Bool
-    var elapsedTime: TimeInterval
+    var timerStartDate: Date
+    var accumulatedTime: TimeInterval
     var preferredPlayTimeSeconds: Int
-
-    /// Virtual start date (timerStartDate - accumulatedTime) enabling Text(date, style: .timer) auto-updates in background.
-    var timerRefDate: Date
 
     // Player counts
     var activePlayersCount: Int
     var benchedPlayersCount: Int
+
+    /// Virtual reference date (`timerStartDate - accumulatedTime`) that lets
+    /// `Text(date, style: .timer)` show the total elapsed time while running.
+    var timerRefDate: Date {
+      timerStartDate.addingTimeInterval(-accumulatedTime)
+    }
   }
 
   // Fixed non-changing properties about your activity
