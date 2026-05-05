@@ -62,13 +62,16 @@ struct TimerView: View {
   @Query private var configurations: [AppConfiguration]
   @Query(sort: \Session.startDate, order: .reverse) var sessions: [Session]
   @Query private var benchManagers: [BenchManager]
+  @Query private var activeManagers: [ActiveManager]
 
   @State var timerViewModel: TimerViewModel?
   @State var showingManualSubstitution = false
   @State var selectedPlayerToSubOut: Player?
   @State var showingPlayerActions: Player?
   @State private var benchOrder: [UUID] = []
+  @State private var activeOrder: [UUID] = []
   @State private var cachedBenchManager: BenchManager?
+  @State private var cachedActiveManager: ActiveManager?
   @State private var showPinnedButton = false
 
   var configuration: AppConfiguration {
@@ -98,9 +101,42 @@ struct TimerView: View {
     }
   }
 
+  var activeManager: ActiveManager {
+    if let cached = cachedActiveManager {
+      return cached
+    }
+
+    if let manager = activeManagers.first {
+      cachedActiveManager = manager
+      return manager
+    } else {
+      let newManager = ActiveManager()
+      modelContext.insert(newManager)
+      try? modelContext.save()
+      cachedActiveManager = newManager
+      return newManager
+    }
+  }
+
   var activePlayers: [Player] {
-    players.filter { $0.status == .active }
-      .sorted(by: { $0.currentPlayDuration > $1.currentPlayDuration })
+    let active = players.filter { $0.status == .active }
+
+    let orderToUse = activeOrder.isEmpty ? (activeManagers.first?.playerOrder ?? []) : activeOrder
+
+    return active.sorted { player1, player2 in
+      let pos1 = orderToUse.firstIndex(of: player1.id)
+      let pos2 = orderToUse.firstIndex(of: player2.id)
+
+      if let p1 = pos1, let p2 = pos2 {
+        return p1 < p2
+      } else if pos1 != nil {
+        return true
+      } else if pos2 != nil {
+        return false
+      } else {
+        return player1.currentPlayDuration > player2.currentPlayDuration
+      }
+    }
   }
 
   var benchedPlayers: [Player] {
@@ -141,11 +177,14 @@ struct TimerView: View {
       }
       .navigationTitle("Super Sub")
       .onAppear {
-        // Initialize cached bench manager first
+        // Initialize cached managers first
         _ = benchManager
+        _ = activeManager
         initializeViewModel(allPlayers: players)
         syncBenchManager()
+        syncActiveManager()
         loadBenchOrder()
+        loadActiveOrder()
       }
       .sheet(isPresented: $showingManualSubstitution) {
         if let playerToSubOut = selectedPlayerToSubOut {
@@ -235,7 +274,8 @@ struct TimerView: View {
     ActivePlayersSectionView(
       players: activePlayers,
       maxActiveCount: configuration.activePlayersCount,
-      onPlayerTap: { player in showingPlayerActions = player }
+      onPlayerTap: { player in showingPlayerActions = player },
+      onReorder: reorderActive
     )
   }
 
@@ -357,6 +397,43 @@ extension TimerView {
     benchOrder = benchManager.playerOrder
   }
 
+  func syncActiveManager() {
+    let manager = activeManager
+    let currentActive = players.filter { $0.status == .active }
+
+    for player in currentActive {
+      if manager.position(of: player.id) == nil {
+        manager.addPlayer(player.id)
+      }
+    }
+
+    let activeIds = Set(currentActive.map { $0.id })
+    manager.playerOrder.removeAll { !activeIds.contains($0) }
+    manager.updatedDate = Date()
+  }
+
+  func loadActiveOrder() {
+    activeOrder = activeManager.playerOrder
+  }
+
+  func reorderActive(_ reorderedPlayers: [Player]) {
+    let newOrder = reorderedPlayers.map { $0.id }
+
+    activeOrder = newOrder
+
+    guard let manager = activeManagers.first else {
+      let newManager = ActiveManager()
+      newManager.playerOrder = newOrder
+      newManager.updatedDate = Date()
+      modelContext.insert(newManager)
+      return
+    }
+
+    manager.playerOrder.removeAll()
+    manager.playerOrder.append(contentsOf: newOrder)
+    manager.updatedDate = Date()
+  }
+
   func toggleTimer() {
     guard let vm = timerViewModel else { return }
     if vm.isRunning {
@@ -385,7 +462,9 @@ extension TimerView {
       allFilteredPlayers[i].status = .active
       allFilteredPlayers[i].activatedAtDate = now
       allFilteredPlayers[i].currentPlayDuration = 0
+      activeManager.addPlayer(allFilteredPlayers[i].id)
     }
+    activeOrder = activeManager.playerOrder
   }
 
   private func updatePlayerTimes() {
@@ -414,8 +493,7 @@ extension TimerView {
 
   func performAutomaticSubstitution() {
     guard
-      let playerToSubOut = activePlayers.max(by: { $0.currentPlayDuration < $1.currentPlayDuration }
-      ),
+      let playerToSubOut = activePlayers.first,
       let playerToSubIn = benchedPlayers.first
     else { return }
     performSubstitution(subOut: playerToSubOut, subIn: playerToSubIn)
@@ -448,6 +526,10 @@ extension TimerView {
     benchManager.addPlayer(subOut.id)
     benchOrder = benchManager.playerOrder
 
+    activeManager.removePlayer(subOut.id)
+    activeManager.addPlayer(subIn.id)
+    activeOrder = activeManager.playerOrder
+
     if let activeSession = sessions.first(where: { $0.isActive }) {
       activeSession.substitutionCount += 1
     }
@@ -470,6 +552,8 @@ extension TimerView {
     player.currentPlayDuration = 0
     benchManager.removePlayer(player.id)
     benchOrder = benchManager.playerOrder
+    activeManager.addPlayer(player.id)
+    activeOrder = activeManager.playerOrder
     updateLiveActivity()
   }
 
@@ -477,6 +561,8 @@ extension TimerView {
     if player.status == .active {
       let timePlayedThisSegment = Date().timeIntervalSince(player.activatedAtDate)
       player.totalPlayTime += timePlayedThisSegment
+      activeManager.removePlayer(player.id)
+      activeOrder = activeManager.playerOrder
     }
     player.status = .temporarilyOut
     updateLiveActivity()
