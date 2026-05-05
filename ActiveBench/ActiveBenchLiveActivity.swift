@@ -28,17 +28,28 @@ struct ActiveBenchLiveActivity: Widget {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-          Text(formatTime(context.state.elapsedTime))
-            .font(.system(size: 32, weight: .bold, design: .rounded))
-            .monospacedDigit()
-            .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+          if context.state.isRunning {
+            Text(context.state.timerRefDate, style: .timer)
+              .font(.system(size: 32, weight: .bold, design: .rounded))
+              .monospacedDigit()
+              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+          } else {
+            Text(formatTime(context.state.elapsedTime))
+              .font(.system(size: 32, weight: .bold, design: .rounded))
+              .monospacedDigit()
+              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+          }
 
           if context.state.preferredPlayTimeSeconds > 0 {
             HStack(spacing: 4) {
               Image(
                 systemName: isOvertime(context.state) ? "exclamationmark.triangle.fill" : "clock"
               )
-              Text(timeRemainingText(context.state))
+              if context.state.isRunning {
+                Text(overtimeDate(context.state), style: .timer)
+              } else {
+                Text(timeRemainingText(context.state))
+              }
             }
             .font(.caption2)
             .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
@@ -79,10 +90,17 @@ struct ActiveBenchLiveActivity: Widget {
             Text("Play Time")
               .font(.caption2)
               .foregroundStyle(.secondary)
-            Text(formatTime(context.state.elapsedTime))
-              .font(.title3)
-              .fontWeight(.semibold)
-              .monospacedDigit()
+            if context.state.isRunning {
+              Text(context.state.timerRefDate, style: .timer)
+                .font(.title3)
+                .fontWeight(.semibold)
+                .monospacedDigit()
+            } else {
+              Text(formatTime(context.state.elapsedTime))
+                .font(.title3)
+                .fontWeight(.semibold)
+                .monospacedDigit()
+            }
           }
         }
 
@@ -113,9 +131,15 @@ struct ActiveBenchLiveActivity: Widget {
             if context.state.preferredPlayTimeSeconds > 0 {
               Spacer()
 
-              Text(timeRemainingText(context.state))
-                .font(.caption)
-                .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+              if context.state.isRunning {
+                Text(overtimeDate(context.state), style: .timer)
+                  .font(.caption)
+                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+              } else {
+                Text(timeRemainingText(context.state))
+                  .font(.caption)
+                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+              }
             }
           }
         }
@@ -123,9 +147,15 @@ struct ActiveBenchLiveActivity: Widget {
         HStack(spacing: 2) {
           Image(systemName: context.state.isRunning ? "play.fill" : "pause.fill")
             .font(.caption2)
-          Text(formatTimeCompact(context.state.elapsedTime))
-            .font(.caption2)
-            .monospacedDigit()
+          if context.state.isRunning {
+            Text(context.state.timerRefDate, style: .timer)
+              .font(.caption2)
+              .monospacedDigit()
+          } else {
+            Text(formatTimeCompact(context.state.elapsedTime))
+              .font(.caption2)
+              .monospacedDigit()
+          }
         }
       } compactTrailing: {
         HStack(spacing: 4) {
@@ -143,6 +173,10 @@ struct ActiveBenchLiveActivity: Widget {
   }
 
   // MARK: - Helper Functions
+
+  private func overtimeDate(_ state: ActiveBenchAttributes.ContentState) -> Date {
+    state.timerRefDate.addingTimeInterval(TimeInterval(state.preferredPlayTimeSeconds))
+  }
 
   private func formatTime(_ timeInterval: TimeInterval) -> String {
     let totalSeconds = Int(timeInterval)
@@ -194,6 +228,7 @@ extension ActiveBenchAttributes.ContentState {
       isRunning: true,
       elapsedTime: 120,  // 2:00
       preferredPlayTimeSeconds: 180,  // 3:00 preferred
+      timerRefDate: Date().addingTimeInterval(-120),
       activePlayersCount: 5,
       benchedPlayersCount: 3
     )
@@ -204,6 +239,7 @@ extension ActiveBenchAttributes.ContentState {
       isRunning: false,
       elapsedTime: 90,  // 1:30
       preferredPlayTimeSeconds: 180,  // 3:00 preferred
+      timerRefDate: Date(),
       activePlayersCount: 5,
       benchedPlayersCount: 3
     )
@@ -214,6 +250,7 @@ extension ActiveBenchAttributes.ContentState {
       isRunning: true,
       elapsedTime: 240,  // 4:00
       preferredPlayTimeSeconds: 180,  // 3:00 preferred (1 minute over)
+      timerRefDate: Date().addingTimeInterval(-240),
       activePlayersCount: 4,
       benchedPlayersCount: 4
     )

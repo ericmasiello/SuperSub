@@ -20,6 +20,9 @@ struct ActiveBenchAttributes: ActivityAttributes {
     var elapsedTime: TimeInterval
     var preferredPlayTimeSeconds: Int
 
+    /// Virtual start date (timerStartDate - accumulatedTime) enabling Text(date, style: .timer) auto-updates in background.
+    var timerRefDate: Date
+
     // Player counts
     var activePlayersCount: Int
     var benchedPlayersCount: Int

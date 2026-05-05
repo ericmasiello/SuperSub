@@ -15,6 +15,9 @@ struct TimerViewModelTests {
         let viewModel = await TimerViewModel(players: players)
 
         #expect(viewModel.isRunning == false)
+        #expect(viewModel.elapsedTime == 0)
+        #expect(viewModel.timerStartDate == nil)
+        #expect(viewModel.accumulatedTime == 0)
         #expect(viewModel.onTimerTick == nil)
     }
 
@@ -25,6 +28,7 @@ struct TimerViewModelTests {
         await viewModel.startTimer()
 
         #expect(viewModel.isRunning == true)
+        #expect(viewModel.timerStartDate != nil)
     }
 
     @Test func startTimerWhenAlreadyRunning() async {
@@ -32,11 +36,12 @@ struct TimerViewModelTests {
         let viewModel = await TimerViewModel(players: players)
 
         await viewModel.startTimer()
+        let firstStartDate = viewModel.timerStartDate
         #expect(viewModel.isRunning == true)
 
-        // Starting again should not change state
         await viewModel.startTimer()
         #expect(viewModel.isRunning == true)
+        #expect(viewModel.timerStartDate == firstStartDate)
     }
 
     @Test func testPauseTimer() async {
@@ -48,6 +53,21 @@ struct TimerViewModelTests {
 
         await viewModel.pauseTimer()
         #expect(viewModel.isRunning == false)
+        #expect(viewModel.timerStartDate == nil)
+    }
+
+    @Test func pauseFoldsTimeIntoAccumulatedTime() async throws {
+        let players = [Player(name: "Player 1")]
+        let viewModel = await TimerViewModel(players: players)
+
+        await viewModel.startTimer()
+        try await Task.sleep(for: .seconds(1.5))
+
+        await viewModel.pauseTimer()
+
+        #expect(viewModel.accumulatedTime >= 1.0)
+        #expect(viewModel.accumulatedTime < 3.0)
+        #expect(viewModel.elapsedTime == viewModel.accumulatedTime)
     }
 
     @Test func pauseTimerWhenNotRunning() async {
@@ -58,6 +78,7 @@ struct TimerViewModelTests {
 
         await viewModel.pauseTimer()
         #expect(viewModel.isRunning == false)
+        #expect(viewModel.accumulatedTime == 0)
     }
 
     @Test func testResetTimer() async {
@@ -69,6 +90,9 @@ struct TimerViewModelTests {
 
         await viewModel.resetTimer()
         #expect(viewModel.isRunning == false)
+        #expect(viewModel.elapsedTime == 0)
+        #expect(viewModel.accumulatedTime == 0)
+        #expect(viewModel.timerStartDate == nil)
     }
 
     @Test func resetTimerWhenNotRunning() async {
@@ -79,21 +103,24 @@ struct TimerViewModelTests {
 
         await viewModel.resetTimer()
         #expect(viewModel.isRunning == false)
+        #expect(viewModel.elapsedTime == 0)
+        #expect(viewModel.accumulatedTime == 0)
     }
 
     @Test func startAfterReset() async {
         let players = [Player(name: "Player 1")]
         let viewModel = await TimerViewModel(players: players)
 
-        // Start, reset, then start again
         await viewModel.startTimer()
         #expect(viewModel.isRunning == true)
 
         await viewModel.resetTimer()
         #expect(viewModel.isRunning == false)
+        #expect(viewModel.elapsedTime == 0)
 
         await viewModel.startTimer()
         #expect(viewModel.isRunning == true)
+        #expect(viewModel.timerStartDate != nil)
     }
 
     @Test func timerTickCallback() async throws {
@@ -107,7 +134,6 @@ struct TimerViewModelTests {
 
         await viewModel.startTimer()
 
-        // Wait for at least 2 seconds to ensure timer ticks
         try await Task.sleep(for: .seconds(2.5))
 
         #expect(tickCount >= 2)
@@ -126,16 +152,13 @@ struct TimerViewModelTests {
 
         await viewModel.startTimer()
 
-        // Wait for some ticks
         try await Task.sleep(for: .seconds(1.5))
 
         await viewModel.pauseTimer()
         let ticksAfterPause = tickCount
 
-        // Wait a bit more
         try await Task.sleep(for: .seconds(1.5))
 
-        // Tick count should not have increased after pause
         #expect(tickCount == ticksAfterPause)
     }
 
@@ -150,16 +173,13 @@ struct TimerViewModelTests {
 
         await viewModel.startTimer()
 
-        // Wait for some ticks
         try await Task.sleep(for: .seconds(1.5))
 
         await viewModel.resetTimer()
         let ticksAfterReset = tickCount
 
-        // Wait a bit more
         try await Task.sleep(for: .seconds(1.5))
 
-        // Tick count should not have increased after reset
         #expect(tickCount == ticksAfterReset)
     }
 
@@ -167,30 +187,22 @@ struct TimerViewModelTests {
         let players = [Player(name: "Player 1")]
         let viewModel = await TimerViewModel(players: players)
 
-        var tickCount = 0
-        viewModel.onTimerTick = {
-            tickCount += 1
-        }
-
-        // First cycle
         await viewModel.startTimer()
         #expect(viewModel.isRunning == true)
         try await Task.sleep(for: .seconds(1.5))
 
         await viewModel.pauseTimer()
         #expect(viewModel.isRunning == false)
-        let firstPauseTicks = tickCount
+        let firstPauseAccumulated = viewModel.accumulatedTime
+        #expect(firstPauseAccumulated >= 1.0)
 
-        // Second cycle
         await viewModel.startTimer()
         #expect(viewModel.isRunning == true)
         try await Task.sleep(for: .seconds(1.5))
 
         await viewModel.pauseTimer()
         #expect(viewModel.isRunning == false)
-
-        // Should have more ticks after second cycle
-        #expect(tickCount > firstPauseTicks)
+        #expect(viewModel.accumulatedTime > firstPauseAccumulated)
     }
 
     @Test func resetClearsTimerCompletely() async throws {
@@ -207,8 +219,9 @@ struct TimerViewModelTests {
 
         await viewModel.resetTimer()
         #expect(viewModel.isRunning == false)
+        #expect(viewModel.elapsedTime == 0)
+        #expect(viewModel.accumulatedTime == 0)
 
-        // Wait to ensure no ticks happen
         let ticksAtReset = tickCount
         try await Task.sleep(for: .seconds(1.5))
 
@@ -230,7 +243,6 @@ struct TimerViewModelTests {
         let players = [Player(name: "Player 1")]
         let viewModel = await TimerViewModel(players: players)
 
-        // Should not crash when starting timer without callback
         await viewModel.startTimer()
         #expect(viewModel.isRunning == true)
 
@@ -238,5 +250,57 @@ struct TimerViewModelTests {
 
         await viewModel.pauseTimer()
         #expect(viewModel.isRunning == false)
+    }
+
+    @Test func elapsedTimeComputedFromDates() async throws {
+        let players = [Player(name: "Player 1")]
+        let viewModel = await TimerViewModel(players: players)
+
+        await viewModel.startTimer()
+        try await Task.sleep(for: .seconds(2.0))
+
+        let elapsed = viewModel.elapsedTime
+        #expect(elapsed >= 1.5)
+        #expect(elapsed < 4.0)
+
+        await viewModel.pauseTimer()
+    }
+
+    @Test func elapsedTimeAccumulatesAcrossPauseResume() async throws {
+        let players = [Player(name: "Player 1")]
+        let viewModel = await TimerViewModel(players: players)
+
+        await viewModel.startTimer()
+        try await Task.sleep(for: .seconds(1.5))
+        await viewModel.pauseTimer()
+        let afterFirstPause = viewModel.elapsedTime
+
+        await viewModel.startTimer()
+        try await Task.sleep(for: .seconds(1.5))
+        await viewModel.pauseTimer()
+        let afterSecondPause = viewModel.elapsedTime
+
+        #expect(afterSecondPause > afterFirstPause)
+        #expect(afterSecondPause >= 2.0)
+    }
+
+    @Test func resetAfterPauseResumeClearsAll() async throws {
+        let players = [Player(name: "Player 1")]
+        let viewModel = await TimerViewModel(players: players)
+
+        await viewModel.startTimer()
+        try await Task.sleep(for: .seconds(1.0))
+        await viewModel.pauseTimer()
+
+        await viewModel.startTimer()
+        try await Task.sleep(for: .seconds(1.0))
+        await viewModel.pauseTimer()
+
+        #expect(viewModel.accumulatedTime >= 1.5)
+
+        await viewModel.resetTimer()
+        #expect(viewModel.elapsedTime == 0)
+        #expect(viewModel.accumulatedTime == 0)
+        #expect(viewModel.timerStartDate == nil)
     }
 }

@@ -267,7 +267,7 @@ extension SettingsView {
 
     func resetAllPlayerTimes() {
         for player in players {
-            player.activatedAtTime = 0
+            player.activatedAtDate = Date()
             player.currentPlayDuration = 0
             player.totalPlayTime = 0
         }
