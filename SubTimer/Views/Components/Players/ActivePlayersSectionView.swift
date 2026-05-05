@@ -14,12 +14,7 @@ struct ActivePlayersSectionView: View {
     let players: [Player]
     let maxActiveCount: Int
     let onPlayerTap: (Player) -> Void
-
-    // MARK: - Computed Properties
-
-    private var longestPlayingPlayer: Player? {
-        players.max(by: { $0.currentPlayDuration < $1.currentPlayDuration })
-    }
+    let onReorder: (([Player]) -> Void)?
 
     // MARK: - Body
 
@@ -38,17 +33,41 @@ struct ActivePlayersSectionView: View {
             // Content
             if players.isEmpty {
                 emptyStateView
-            } else {
-                LazyVStack(spacing: 8) {
-                    ForEach(players) { player in
+            } else if onReorder != nil {
+                List {
+                    ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
                         ActivePlayerRowView(
                             player: player,
-                            isNextToSubOut: isNextToSubOut(player),
+                            isNextToSubOut: isNextToSubOut(index),
+                            onTap: { onPlayerTap(player) }
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(
+                            isNextToSubOut(index)
+                                ? RoundedRectangle(cornerRadius: 12).fill(Color.appOrange.opacity(0.1))
+                                : RoundedRectangle(cornerRadius: 12).fill(
+                                    Color(uiColor: .secondarySystemBackground)
+                                )
+                        )
+                    }
+                    .onMove(perform: movePlayer)
+                }
+                .listStyle(.plain)
+                .listRowSpacing(8)
+                .environment(\.editMode, .constant(.active))
+                .frame(height: CGFloat(players.count) * 80)
+            } else {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+                        ActivePlayerRowView(
+                            player: player,
+                            isNextToSubOut: isNextToSubOut(index),
                             onTap: { onPlayerTap(player) }
                         )
                         .padding(.horizontal, 4)
                         .background(
-                            isNextToSubOut(player)
+                            isNextToSubOut(index)
                                 ? RoundedRectangle(cornerRadius: 12).fill(Color.appOrange.opacity(0.1))
                                 : RoundedRectangle(cornerRadius: 12).fill(
                                     Color(uiColor: .secondarySystemBackground)
@@ -73,9 +92,15 @@ struct ActivePlayersSectionView: View {
 
     // MARK: - Helper Methods
 
-    private func isNextToSubOut(_ player: Player) -> Bool {
+    private func isNextToSubOut(_ index: Int) -> Bool {
         guard players.count > 1 else { return false }
-        return longestPlayingPlayer?.id == player.id
+        return index == 0
+    }
+
+    private func movePlayer(from source: IndexSet, to destination: Int) {
+        var reorderedPlayers = players
+        reorderedPlayers.move(fromOffsets: source, toOffset: destination)
+        onReorder?(reorderedPlayers)
     }
 }
 
@@ -90,7 +115,8 @@ struct ActivePlayersSectionView: View {
             Player(name: "Sarah Williams", currentPlayDuration: 150, status: .active),
         ],
         maxActiveCount: 4,
-        onPlayerTap: { player in print("Tapped: \(player.name)") }
+        onPlayerTap: { player in print("Tapped: \(player.name)") },
+        onReorder: { players in print("Reordered: \(players.map { $0.name })") }
     )
     .padding()
 }
@@ -99,7 +125,8 @@ struct ActivePlayersSectionView: View {
     ActivePlayersSectionView(
         players: [],
         maxActiveCount: 4,
-        onPlayerTap: { _ in }
+        onPlayerTap: { _ in },
+        onReorder: nil
     )
     .padding()
 }
@@ -110,7 +137,8 @@ struct ActivePlayersSectionView: View {
             Player(name: "Solo Player", currentPlayDuration: 200, status: .active),
         ],
         maxActiveCount: 4,
-        onPlayerTap: { _ in }
+        onPlayerTap: { _ in },
+        onReorder: nil
     )
     .padding()
 }
@@ -123,7 +151,8 @@ struct ActivePlayersSectionView: View {
             Player(name: "Player 3", currentPlayDuration: 90, status: .active),
         ],
         maxActiveCount: 3,
-        onPlayerTap: { _ in }
+        onPlayerTap: { _ in },
+        onReorder: { _ in print("Reordered") }
     )
     .padding()
 }
@@ -135,7 +164,8 @@ struct ActivePlayersSectionView: View {
             Player(name: "Player 2", currentPlayDuration: 180, status: .active),
         ],
         maxActiveCount: 5,
-        onPlayerTap: { _ in }
+        onPlayerTap: { _ in },
+        onReorder: nil
     )
     .padding()
 }
