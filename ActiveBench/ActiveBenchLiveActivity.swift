@@ -38,8 +38,9 @@ struct ActiveBenchLiveActivity: Widget {
               let subIn = context.state.subInPlayerName
             {
               Text("\(subOut) → \(subIn)")
-                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color("AppOrange"))
+                .lineLimit(1)
             }
           }
         }
@@ -67,31 +68,19 @@ struct ActiveBenchLiveActivity: Widget {
 
     } dynamicIsland: { context in
       DynamicIsland {
-        // Expanded UI goes here
         DynamicIslandExpandedRegion(.leading) {
-          VStack(alignment: .leading, spacing: 2) {
-            if context.state.isRunning {
-              Text(context.state.timerRefDate, style: .timer)
-                .font(.title3)
-                .fontWeight(.semibold)
-                .monospacedDigit()
-                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-            } else {
-              Text(formatTime(context.state.accumulatedTime))
-                .font(.title3)
-                .fontWeight(.semibold)
-                .monospacedDigit()
-                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-            }
-          }
-          .padding(.top, 4)
-        }
-
-        DynamicIslandExpandedRegion(.trailing) {
-          VStack(alignment: .trailing, spacing: 2) {
-            Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
-              .font(.title2)
-              .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
+          if context.state.isRunning {
+            Text(context.state.timerRefDate, style: .timer)
+              .font(.title3)
+              .fontWeight(.semibold)
+              .monospacedDigit()
+              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+          } else {
+            Text(formatTime(context.state.accumulatedTime))
+              .font(.title3)
+              .fontWeight(.semibold)
+              .monospacedDigit()
+              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
           }
         }
 
@@ -99,45 +88,34 @@ struct ActiveBenchLiveActivity: Widget {
           if let subOut = context.state.subOutPlayerName,
             let subIn = context.state.subInPlayerName
           {
-            HStack(spacing: 4) {
-              Image(systemName: "arrow.left.arrow.right")
-              Text("\(subOut) → \(subIn)")
-            }
-            .font(.caption2)
-            .foregroundStyle(Color("AppOrange"))
+            Text("\(subOut) → \(subIn)")
+              .font(.title3)
+              .fontWeight(.semibold)
+              .foregroundStyle(Color("AppOrange"))
+              .lineLimit(1)
+              .minimumScaleFactor(0.7)
           }
         }
 
+        DynamicIslandExpandedRegion(.trailing) {
+          Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
+            .font(.title2)
+            .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
+        }
+
         DynamicIslandExpandedRegion(.bottom) {
-          HStack {
+          HStack(spacing: 16) {
             HStack(spacing: 4) {
               Image(systemName: "person.3.fill")
               Text("\(context.state.activePlayersCount)")
             }
-            .font(.caption)
-
-            Spacer()
 
             HStack(spacing: 4) {
               Image(systemName: "figure.seated")
               Text("\(context.state.benchedPlayersCount)")
             }
-            .font(.caption)
-
-            if context.state.preferredPlayTimeSeconds > 0 {
-              Spacer()
-
-              if context.state.isRunning {
-                Text(overtimeDate(context.state), style: .timer)
-                  .font(.caption)
-                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
-              } else {
-                Text(timeRemainingText(context.state))
-                  .font(.caption)
-                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
-              }
-            }
           }
+          .font(.caption)
         }
       } compactLeading: {
         HStack(spacing: 2) {
