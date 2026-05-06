@@ -69,42 +69,7 @@ struct ActiveBenchLiveActivity: Widget {
     } dynamicIsland: { context in
       DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {
-          if context.state.isRunning {
-            Text(context.state.timerRefDate, style: .timer)
-              .font(.title3)
-              .fontWeight(.semibold)
-              .monospacedDigit()
-              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-          } else {
-            Text(formatTime(context.state.accumulatedTime))
-              .font(.title3)
-              .fontWeight(.semibold)
-              .monospacedDigit()
-              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-          }
-        }
-
-        DynamicIslandExpandedRegion(.center) {
-          if let subOut = context.state.subOutPlayerName,
-            let subIn = context.state.subInPlayerName
-          {
-            Text("\(subOut) → \(subIn)")
-              .font(.title3)
-              .fontWeight(.semibold)
-              .foregroundStyle(Color("AppOrange"))
-              .lineLimit(1)
-              .minimumScaleFactor(0.7)
-          }
-        }
-
-        DynamicIslandExpandedRegion(.trailing) {
-          Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
-            .font(.title2)
-            .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
-        }
-
-        DynamicIslandExpandedRegion(.bottom) {
-          HStack(spacing: 16) {
+          HStack(spacing: 12) {
             HStack(spacing: 4) {
               Image(systemName: "person.3.fill")
               Text("\(context.state.activePlayersCount)")
@@ -116,6 +81,34 @@ struct ActiveBenchLiveActivity: Widget {
             }
           }
           .font(.caption)
+          .foregroundStyle(.secondary)
+        }
+
+        DynamicIslandExpandedRegion(.bottom) {
+          VStack(spacing: 4) {
+            if context.state.isRunning {
+              Text(context.state.timerRefDate, style: .timer)
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            } else {
+              Text(formatTime(context.state.accumulatedTime))
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            }
+
+            if let subOut = context.state.subOutPlayerName,
+              let subIn = context.state.subInPlayerName
+            {
+              Text("\(subOut) → \(subIn)")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color("AppOrange"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            }
+          }
+          .frame(maxWidth: .infinity)
         }
       } compactLeading: {
         HStack(spacing: 2) {
