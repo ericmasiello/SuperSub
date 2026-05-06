@@ -21,7 +21,7 @@ struct ActiveBenchLiveActivity: Widget {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-          HStack(spacing: 12) {
+          HStack(alignment: .firstTextBaseline, spacing: 12) {
             if context.state.isRunning {
               Text(context.state.timerRefDate, style: .timer)
                 .font(.system(size: 32, weight: .bold, design: .rounded))
@@ -244,6 +244,30 @@ extension ActiveBenchAttributes.ContentState {
 }
 
 #Preview("Notification", as: .content, using: ActiveBenchAttributes.preview) {
+  ActiveBenchLiveActivity()
+} contentStates: {
+  ActiveBenchAttributes.ContentState.running
+  ActiveBenchAttributes.ContentState.paused
+  ActiveBenchAttributes.ContentState.overtime
+}
+
+#Preview("Dynamic Island Expanded", as: .dynamicIsland(.expanded), using: ActiveBenchAttributes.preview) {
+  ActiveBenchLiveActivity()
+} contentStates: {
+  ActiveBenchAttributes.ContentState.running
+  ActiveBenchAttributes.ContentState.paused
+  ActiveBenchAttributes.ContentState.overtime
+}
+
+#Preview("Dynamic Island Compact", as: .dynamicIsland(.compact), using: ActiveBenchAttributes.preview) {
+  ActiveBenchLiveActivity()
+} contentStates: {
+  ActiveBenchAttributes.ContentState.running
+  ActiveBenchAttributes.ContentState.paused
+  ActiveBenchAttributes.ContentState.overtime
+}
+
+#Preview("Dynamic Island Minimal", as: .dynamicIsland(.minimal), using: ActiveBenchAttributes.preview) {
   ActiveBenchLiveActivity()
 } contentStates: {
   ActiveBenchAttributes.ContentState.running
