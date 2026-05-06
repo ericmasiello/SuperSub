@@ -25,6 +25,10 @@ struct ActiveBenchAttributes: ActivityAttributes {
     var activePlayersCount: Int
     var benchedPlayersCount: Int
 
+    // Substitution recommendation
+    var subOutPlayerName: String?
+    var subInPlayerName: String?
+
     /// Virtual reference date (`timerStartDate - accumulatedTime`) that lets
     /// `Text(date, style: .timer)` show the total elapsed time while running.
     var timerRefDate: Date {

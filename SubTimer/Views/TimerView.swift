@@ -639,7 +639,9 @@ extension TimerView {
         accumulatedTime: timerViewModel?.accumulatedTime ?? 0,
         preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
         activePlayersCount: activePlayers.count,
-        benchedPlayersCount: benchedPlayers.count
+        benchedPlayersCount: benchedPlayers.count,
+        subOutPlayerName: activePlayers.first?.name,
+        subInPlayerName: benchedPlayers.first?.name
       )
       scheduleOvertimeUpdate()
     }
@@ -653,7 +655,9 @@ extension TimerView {
         accumulatedTime: timerViewModel?.accumulatedTime ?? 0,
         preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
         activePlayersCount: activePlayers.count,
-        benchedPlayersCount: benchedPlayers.count
+        benchedPlayersCount: benchedPlayers.count,
+        subOutPlayerName: activePlayers.first?.name,
+        subInPlayerName: benchedPlayers.first?.name
       )
     }
   }

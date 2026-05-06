@@ -77,6 +77,18 @@ struct ActiveBenchLiveActivity: Widget {
           .font(.caption)
         }
         .foregroundStyle(.secondary)
+
+        if let subOut = context.state.subOutPlayerName,
+          let subIn = context.state.subInPlayerName
+        {
+          HStack(spacing: 6) {
+            Image(systemName: "arrow.left.arrow.right")
+            Text("\(subOut) → \(subIn)")
+          }
+          .font(.subheadline)
+          .fontWeight(.medium)
+          .foregroundStyle(Color("AppOrange"))
+        }
       }
       .padding()
       .activityBackgroundTint(Color(uiColor: .systemBackground))
@@ -95,11 +107,13 @@ struct ActiveBenchLiveActivity: Widget {
                 .font(.title3)
                 .fontWeight(.semibold)
                 .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
             } else {
               Text(formatTime(context.state.accumulatedTime))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
             }
           }
         }
@@ -113,33 +127,46 @@ struct ActiveBenchLiveActivity: Widget {
         }
 
         DynamicIslandExpandedRegion(.bottom) {
-          HStack {
-            HStack(spacing: 4) {
-              Image(systemName: "person.3.fill")
-              Text("\(context.state.activePlayersCount)")
-            }
-            .font(.caption)
+          VStack(spacing: 6) {
+            HStack {
+              HStack(spacing: 4) {
+                Image(systemName: "person.3.fill")
+                Text("\(context.state.activePlayersCount)")
+              }
+              .font(.caption)
 
-            Spacer()
-
-            HStack(spacing: 4) {
-              Image(systemName: "figure.seated")
-              Text("\(context.state.benchedPlayersCount)")
-            }
-            .font(.caption)
-
-            if context.state.preferredPlayTimeSeconds > 0 {
               Spacer()
 
-              if context.state.isRunning {
-                Text(overtimeDate(context.state), style: .timer)
-                  .font(.caption)
-                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
-              } else {
-                Text(timeRemainingText(context.state))
-                  .font(.caption)
-                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+              HStack(spacing: 4) {
+                Image(systemName: "figure.seated")
+                Text("\(context.state.benchedPlayersCount)")
               }
+              .font(.caption)
+
+              if context.state.preferredPlayTimeSeconds > 0 {
+                Spacer()
+
+                if context.state.isRunning {
+                  Text(overtimeDate(context.state), style: .timer)
+                    .font(.caption)
+                    .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+                } else {
+                  Text(timeRemainingText(context.state))
+                    .font(.caption)
+                    .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+                }
+              }
+            }
+
+            if let subOut = context.state.subOutPlayerName,
+              let subIn = context.state.subInPlayerName
+            {
+              HStack(spacing: 4) {
+                Image(systemName: "arrow.left.arrow.right")
+                Text("\(subOut) → \(subIn)")
+              }
+              .font(.caption2)
+              .foregroundStyle(Color("AppOrange"))
             }
           }
         }
@@ -151,10 +178,12 @@ struct ActiveBenchLiveActivity: Widget {
             Text(context.state.timerRefDate, style: .timer)
               .font(.caption2)
               .monospacedDigit()
+              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
           } else {
             Text(formatTimeCompact(context.state.accumulatedTime))
               .font(.caption2)
               .monospacedDigit()
+              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
           }
         }
       } compactTrailing: {
@@ -234,7 +263,9 @@ extension ActiveBenchAttributes.ContentState {
       accumulatedTime: 0,
       preferredPlayTimeSeconds: 180,
       activePlayersCount: 5,
-      benchedPlayersCount: 3
+      benchedPlayersCount: 3,
+      subOutPlayerName: "Alice",
+      subInPlayerName: "Bob"
     )
   }
 
@@ -245,7 +276,9 @@ extension ActiveBenchAttributes.ContentState {
       accumulatedTime: 90,
       preferredPlayTimeSeconds: 180,
       activePlayersCount: 5,
-      benchedPlayersCount: 3
+      benchedPlayersCount: 3,
+      subOutPlayerName: "Alice",
+      subInPlayerName: "Bob"
     )
   }
 
@@ -256,7 +289,9 @@ extension ActiveBenchAttributes.ContentState {
       accumulatedTime: 0,
       preferredPlayTimeSeconds: 180,
       activePlayersCount: 4,
-      benchedPlayersCount: 4
+      benchedPlayersCount: 4,
+      subOutPlayerName: "Charlie",
+      subInPlayerName: "Diana"
     )
   }
 }

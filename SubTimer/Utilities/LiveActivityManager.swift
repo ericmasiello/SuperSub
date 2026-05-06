@@ -26,7 +26,9 @@ class LiveActivityManager {
     accumulatedTime: TimeInterval,
     preferredPlayTimeSeconds: Int,
     activePlayersCount: Int,
-    benchedPlayersCount: Int
+    benchedPlayersCount: Int,
+    subOutPlayerName: String? = nil,
+    subInPlayerName: String? = nil
   ) {
     guard ActivityAuthorizationInfo().areActivitiesEnabled else {
       print("⚠️ Live Activities are not enabled")
@@ -40,7 +42,9 @@ class LiveActivityManager {
         accumulatedTime: accumulatedTime,
         preferredPlayTimeSeconds: preferredPlayTimeSeconds,
         activePlayersCount: activePlayersCount,
-        benchedPlayersCount: benchedPlayersCount
+        benchedPlayersCount: benchedPlayersCount,
+        subOutPlayerName: subOutPlayerName,
+        subInPlayerName: subInPlayerName
       )
       return
     }
@@ -51,7 +55,9 @@ class LiveActivityManager {
       accumulatedTime: accumulatedTime,
       preferredPlayTimeSeconds: preferredPlayTimeSeconds,
       activePlayersCount: activePlayersCount,
-      benchedPlayersCount: benchedPlayersCount
+      benchedPlayersCount: benchedPlayersCount,
+      subOutPlayerName: subOutPlayerName,
+      subInPlayerName: subInPlayerName
     )
 
     do {
@@ -73,7 +79,9 @@ class LiveActivityManager {
     accumulatedTime: TimeInterval,
     preferredPlayTimeSeconds: Int,
     activePlayersCount: Int,
-    benchedPlayersCount: Int
+    benchedPlayersCount: Int,
+    subOutPlayerName: String? = nil,
+    subInPlayerName: String? = nil
   ) {
     guard let activity = currentActivity else { return }
 
@@ -83,7 +91,9 @@ class LiveActivityManager {
       accumulatedTime: accumulatedTime,
       preferredPlayTimeSeconds: preferredPlayTimeSeconds,
       activePlayersCount: activePlayersCount,
-      benchedPlayersCount: benchedPlayersCount
+      benchedPlayersCount: benchedPlayersCount,
+      subOutPlayerName: subOutPlayerName,
+      subInPlayerName: subInPlayerName
     )
 
     Task {
