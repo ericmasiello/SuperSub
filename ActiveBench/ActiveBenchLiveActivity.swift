@@ -118,47 +118,47 @@ struct ActiveBenchLiveActivity: Widget {
           }
         }
 
-        DynamicIslandExpandedRegion(.bottom) {
-          VStack(spacing: 6) {
-            HStack {
-              HStack(spacing: 4) {
-                Image(systemName: "person.3.fill")
-                Text("\(context.state.activePlayersCount)")
-              }
-              .font(.caption)
+        DynamicIslandExpandedRegion(.center) {
+          if let subOut = context.state.subOutPlayerName,
+            let subIn = context.state.subInPlayerName
+          {
+            HStack(spacing: 4) {
+              Image(systemName: "arrow.left.arrow.right")
+              Text("\(subOut) → \(subIn)")
+            }
+            .font(.caption2)
+            .foregroundStyle(Color("AppOrange"))
+          }
+        }
 
+        DynamicIslandExpandedRegion(.bottom) {
+          HStack {
+            HStack(spacing: 4) {
+              Image(systemName: "person.3.fill")
+              Text("\(context.state.activePlayersCount)")
+            }
+            .font(.caption)
+
+            Spacer()
+
+            HStack(spacing: 4) {
+              Image(systemName: "figure.seated")
+              Text("\(context.state.benchedPlayersCount)")
+            }
+            .font(.caption)
+
+            if context.state.preferredPlayTimeSeconds > 0 {
               Spacer()
 
-              HStack(spacing: 4) {
-                Image(systemName: "figure.seated")
-                Text("\(context.state.benchedPlayersCount)")
+              if context.state.isRunning {
+                Text(overtimeDate(context.state), style: .timer)
+                  .font(.caption)
+                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+              } else {
+                Text(timeRemainingText(context.state))
+                  .font(.caption)
+                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
               }
-              .font(.caption)
-
-              if context.state.preferredPlayTimeSeconds > 0 {
-                Spacer()
-
-                if context.state.isRunning {
-                  Text(overtimeDate(context.state), style: .timer)
-                    .font(.caption)
-                    .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
-                } else {
-                  Text(timeRemainingText(context.state))
-                    .font(.caption)
-                    .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
-                }
-              }
-            }
-
-            if let subOut = context.state.subOutPlayerName,
-              let subIn = context.state.subInPlayerName
-            {
-              HStack(spacing: 4) {
-                Image(systemName: "arrow.left.arrow.right")
-                Text("\(subOut) → \(subIn)")
-              }
-              .font(.caption2)
-              .foregroundStyle(Color("AppOrange"))
             }
           }
         }
