@@ -15,14 +15,7 @@ import WidgetKit
 struct ActiveBenchLiveActivity: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: ActiveBenchAttributes.self) { context in
-      // Lock screen/banner UI goes here
       VStack(spacing: 12) {
-        // Session name
-        Text(context.attributes.sessionName)
-          .font(.headline)
-          .foregroundStyle(.secondary)
-
-        // Timer display
         VStack(spacing: 4) {
           Text("Current Play Time")
             .font(.caption)
@@ -40,23 +33,36 @@ struct ActiveBenchLiveActivity: Widget {
               .foregroundStyle(isOvertime(context.state) ? .red : .primary)
           }
 
-          if context.state.preferredPlayTimeSeconds > 0 {
-            HStack(spacing: 4) {
-              Image(
-                systemName: isOvertime(context.state) ? "exclamationmark.triangle.fill" : "clock"
-              )
-              if context.state.isRunning {
-                Text(overtimeDate(context.state), style: .timer)
-              } else {
-                Text(timeRemainingText(context.state))
+          HStack(spacing: 12) {
+            if context.state.preferredPlayTimeSeconds > 0 {
+              HStack(spacing: 4) {
+                Image(
+                  systemName: isOvertime(context.state) ? "exclamationmark.triangle.fill" : "clock"
+                )
+                if context.state.isRunning {
+                  Text(overtimeDate(context.state), style: .timer)
+                } else {
+                  Text(timeRemainingText(context.state))
+                }
               }
+              .font(.caption2)
+              .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
             }
-            .font(.caption2)
-            .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+
+            if let subOut = context.state.subOutPlayerName,
+              let subIn = context.state.subInPlayerName
+            {
+              HStack(spacing: 4) {
+                Image(systemName: "arrow.left.arrow.right")
+                Text("\(subOut) → \(subIn)")
+              }
+              .font(.caption2)
+              .fontWeight(.medium)
+              .foregroundStyle(Color("AppOrange"))
+            }
           }
         }
 
-        // Timer status
         HStack(spacing: 16) {
           HStack(spacing: 4) {
             Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
@@ -77,18 +83,6 @@ struct ActiveBenchLiveActivity: Widget {
           .font(.caption)
         }
         .foregroundStyle(.secondary)
-
-        if let subOut = context.state.subOutPlayerName,
-          let subIn = context.state.subInPlayerName
-        {
-          HStack(spacing: 6) {
-            Image(systemName: "arrow.left.arrow.right")
-            Text("\(subOut) → \(subIn)")
-          }
-          .font(.subheadline)
-          .fontWeight(.medium)
-          .foregroundStyle(Color("AppOrange"))
-        }
       }
       .padding()
       .activityBackgroundTint(Color(uiColor: .systemBackground))
@@ -99,9 +93,6 @@ struct ActiveBenchLiveActivity: Widget {
         // Expanded UI goes here
         DynamicIslandExpandedRegion(.leading) {
           VStack(alignment: .leading, spacing: 2) {
-            Text("Play Time")
-              .font(.caption2)
-              .foregroundStyle(.secondary)
             if context.state.isRunning {
               Text(context.state.timerRefDate, style: .timer)
                 .font(.title3)
