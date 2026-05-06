@@ -34,7 +34,7 @@ struct ActiveBenchLiveActivity: Widget {
               .monospacedDigit()
               .foregroundStyle(isOvertime(context.state) ? .red : .primary)
           } else {
-            Text(formatTime(context.state.elapsedTime))
+            Text(formatTime(context.state.accumulatedTime))
               .font(.system(size: 32, weight: .bold, design: .rounded))
               .monospacedDigit()
               .foregroundStyle(isOvertime(context.state) ? .red : .primary)
@@ -96,7 +96,7 @@ struct ActiveBenchLiveActivity: Widget {
                 .fontWeight(.semibold)
                 .monospacedDigit()
             } else {
-              Text(formatTime(context.state.elapsedTime))
+              Text(formatTime(context.state.accumulatedTime))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .monospacedDigit()
@@ -152,7 +152,7 @@ struct ActiveBenchLiveActivity: Widget {
               .font(.caption2)
               .monospacedDigit()
           } else {
-            Text(formatTimeCompact(context.state.elapsedTime))
+            Text(formatTimeCompact(context.state.accumulatedTime))
               .font(.caption2)
               .monospacedDigit()
           }
@@ -200,11 +200,15 @@ struct ActiveBenchLiveActivity: Widget {
 
   private func isOvertime(_ state: ActiveBenchAttributes.ContentState) -> Bool {
     guard state.preferredPlayTimeSeconds > 0 else { return false }
-    return state.elapsedTime > TimeInterval(state.preferredPlayTimeSeconds)
+    if state.isRunning {
+      let elapsed = Date().timeIntervalSince(state.timerRefDate)
+      return elapsed > TimeInterval(state.preferredPlayTimeSeconds)
+    }
+    return state.accumulatedTime > TimeInterval(state.preferredPlayTimeSeconds)
   }
 
   private func timeRemainingText(_ state: ActiveBenchAttributes.ContentState) -> String {
-    let timeRemaining = TimeInterval(state.preferredPlayTimeSeconds) - state.elapsedTime
+    let timeRemaining = TimeInterval(state.preferredPlayTimeSeconds) - state.accumulatedTime
 
     if timeRemaining < 0 {
       return "Over by \(formatTimeCompact(abs(timeRemaining)))"
@@ -226,9 +230,9 @@ extension ActiveBenchAttributes.ContentState {
   fileprivate static var running: ActiveBenchAttributes.ContentState {
     ActiveBenchAttributes.ContentState(
       isRunning: true,
-      elapsedTime: 120,  // 2:00
-      preferredPlayTimeSeconds: 180,  // 3:00 preferred
-      timerRefDate: Date().addingTimeInterval(-120),
+      timerStartDate: Date().addingTimeInterval(-120),
+      accumulatedTime: 0,
+      preferredPlayTimeSeconds: 180,
       activePlayersCount: 5,
       benchedPlayersCount: 3
     )
@@ -237,9 +241,9 @@ extension ActiveBenchAttributes.ContentState {
   fileprivate static var paused: ActiveBenchAttributes.ContentState {
     ActiveBenchAttributes.ContentState(
       isRunning: false,
-      elapsedTime: 90,  // 1:30
-      preferredPlayTimeSeconds: 180,  // 3:00 preferred
-      timerRefDate: Date(),
+      timerStartDate: Date(),
+      accumulatedTime: 90,
+      preferredPlayTimeSeconds: 180,
       activePlayersCount: 5,
       benchedPlayersCount: 3
     )
@@ -248,9 +252,9 @@ extension ActiveBenchAttributes.ContentState {
   fileprivate static var overtime: ActiveBenchAttributes.ContentState {
     ActiveBenchAttributes.ContentState(
       isRunning: true,
-      elapsedTime: 240,  // 4:00
-      preferredPlayTimeSeconds: 180,  // 3:00 preferred (1 minute over)
-      timerRefDate: Date().addingTimeInterval(-240),
+      timerStartDate: Date().addingTimeInterval(-240),
+      accumulatedTime: 0,
+      preferredPlayTimeSeconds: 180,
       activePlayersCount: 4,
       benchedPlayersCount: 4
     )

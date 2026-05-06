@@ -19,103 +19,76 @@ class LiveActivityManager {
 
   private init() {}
 
-  /// Starts a new Live Activity with the current timer state
-  /// - Parameters:
-  ///   - sessionName: Name of the current session
-  ///   - isRunning: Whether the timer is running
-  ///   - elapsedTime: Current elapsed time
-  ///   - preferredPlayTimeSeconds: Preferred play time in seconds
-  ///   - activePlayersCount: Number of active players
-  ///   - benchedPlayersCount: Number of benched players
   func startActivity(
     sessionName: String,
     isRunning: Bool,
-    elapsedTime: TimeInterval,
+    timerStartDate: Date,
+    accumulatedTime: TimeInterval,
     preferredPlayTimeSeconds: Int,
-    timerRefDate: Date,
     activePlayersCount: Int,
     benchedPlayersCount: Int
   ) {
-    // Check if activities are enabled
     guard ActivityAuthorizationInfo().areActivitiesEnabled else {
       print("⚠️ Live Activities are not enabled")
       return
     }
 
-    // Don't end existing activity - just update it if it exists
     if currentActivity != nil {
-      print("ℹ️ Live Activity already exists, updating instead of recreating")
       updateActivity(
         isRunning: isRunning,
-        elapsedTime: elapsedTime,
+        timerStartDate: timerStartDate,
+        accumulatedTime: accumulatedTime,
         preferredPlayTimeSeconds: preferredPlayTimeSeconds,
-        timerRefDate: timerRefDate,
         activePlayersCount: activePlayersCount,
         benchedPlayersCount: benchedPlayersCount
       )
       return
     }
 
-    let attributes = ActiveBenchAttributes(sessionName: sessionName)
     let contentState = ActiveBenchAttributes.ContentState(
       isRunning: isRunning,
-      elapsedTime: elapsedTime,
+      timerStartDate: timerStartDate,
+      accumulatedTime: accumulatedTime,
       preferredPlayTimeSeconds: preferredPlayTimeSeconds,
-      timerRefDate: timerRefDate,
       activePlayersCount: activePlayersCount,
       benchedPlayersCount: benchedPlayersCount
     )
 
     do {
       let staleDate = computeStaleDate(
-        isRunning: isRunning, timerRefDate: timerRefDate,
+        isRunning: isRunning, timerRefDate: contentState.timerRefDate,
         preferredPlayTimeSeconds: preferredPlayTimeSeconds)
       currentActivity = try Activity.request(
-        attributes: attributes,
+        attributes: ActiveBenchAttributes(sessionName: sessionName),
         content: ActivityContent(state: contentState, staleDate: staleDate)
       )
-      print("✅ Live Activity started successfully - Time: \(Int(elapsedTime))s")
     } catch {
       print("❌ Error starting Live Activity: \(error.localizedDescription)")
     }
   }
 
-  /// Updates the existing Live Activity with new timer state
-  /// - Parameters:
-  ///   - isRunning: Whether the timer is running
-  ///   - elapsedTime: Current elapsed time
-  ///   - preferredPlayTimeSeconds: Preferred play time in seconds
-  ///   - activePlayersCount: Number of active players
-  ///   - benchedPlayersCount: Number of benched players
   func updateActivity(
     isRunning: Bool,
-    elapsedTime: TimeInterval,
+    timerStartDate: Date,
+    accumulatedTime: TimeInterval,
     preferredPlayTimeSeconds: Int,
-    timerRefDate: Date,
     activePlayersCount: Int,
     benchedPlayersCount: Int
   ) {
-    guard let activity = currentActivity else {
-      print("⚠️ No active Live Activity to update")
-      return
-    }
-
-    print(
-      "🔄 Updating Live Activity - Time: \(Int(elapsedTime))s, Running: \(isRunning), Active: \(activePlayersCount), Benched: \(benchedPlayersCount)"
-    )
+    guard let activity = currentActivity else { return }
 
     let contentState = ActiveBenchAttributes.ContentState(
       isRunning: isRunning,
-      elapsedTime: elapsedTime,
+      timerStartDate: timerStartDate,
+      accumulatedTime: accumulatedTime,
       preferredPlayTimeSeconds: preferredPlayTimeSeconds,
-      timerRefDate: timerRefDate,
       activePlayersCount: activePlayersCount,
       benchedPlayersCount: benchedPlayersCount
     )
 
     Task {
       let staleDate = computeStaleDate(
-        isRunning: isRunning, timerRefDate: timerRefDate,
+        isRunning: isRunning, timerRefDate: contentState.timerRefDate,
         preferredPlayTimeSeconds: preferredPlayTimeSeconds)
       await activity.update(
         ActivityContent(
@@ -123,7 +96,6 @@ class LiveActivityManager {
           staleDate: staleDate
         )
       )
-      print("✅ Live Activity updated successfully")
     }
   }
 
