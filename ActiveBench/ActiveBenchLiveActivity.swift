@@ -21,67 +21,44 @@ struct ActiveBenchLiveActivity: Widget {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-          if context.state.isRunning {
-            Text(context.state.timerRefDate, style: .timer)
-              .font(.system(size: 32, weight: .bold, design: .rounded))
-              .monospacedDigit()
-              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-          } else {
-            Text(formatTime(context.state.accumulatedTime))
-              .font(.system(size: 32, weight: .bold, design: .rounded))
-              .monospacedDigit()
-              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-          }
-
           HStack(spacing: 12) {
-            if context.state.preferredPlayTimeSeconds > 0 {
-              HStack(spacing: 4) {
-                Image(
-                  systemName: isOvertime(context.state) ? "exclamationmark.triangle.fill" : "clock"
-                )
-                if context.state.isRunning {
-                  Text(overtimeDate(context.state), style: .timer)
-                } else {
-                  Text(timeRemainingText(context.state))
-                }
-              }
-              .font(.caption2)
-              .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+            if context.state.isRunning {
+              Text(context.state.timerRefDate, style: .timer)
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            } else {
+              Text(formatTime(context.state.accumulatedTime))
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
             }
 
             if let subOut = context.state.subOutPlayerName,
               let subIn = context.state.subInPlayerName
             {
-              HStack(spacing: 4) {
-                Image(systemName: "arrow.left.arrow.right")
-                Text("\(subOut) → \(subIn)")
-              }
-              .font(.caption2)
-              .fontWeight(.medium)
-              .foregroundStyle(Color("AppOrange"))
+              Text("\(subOut) → \(subIn)")
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundStyle(Color("AppOrange"))
             }
           }
         }
 
         HStack(spacing: 16) {
-          HStack(spacing: 4) {
-            Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
-            Text(context.state.isRunning ? "Running" : "Paused")
-          }
-          .font(.caption)
+          Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
+            .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
 
           HStack(spacing: 4) {
             Image(systemName: "person.3.fill")
             Text("\(context.state.activePlayersCount) Active")
           }
-          .font(.caption)
 
           HStack(spacing: 4) {
             Image(systemName: "figure.seated")
             Text("\(context.state.benchedPlayersCount) Bench")
           }
-          .font(.caption)
         }
+        .font(.caption)
         .foregroundStyle(.secondary)
       }
       .padding()
