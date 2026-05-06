@@ -107,6 +107,7 @@ struct ActiveBenchLiveActivity: Widget {
                 .foregroundStyle(isOvertime(context.state) ? .red : .primary)
             }
           }
+          .padding(.top, 4)
         }
 
         DynamicIslandExpandedRegion(.trailing) {
