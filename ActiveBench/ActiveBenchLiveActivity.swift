@@ -127,11 +127,13 @@ struct ActiveBenchLiveActivity: Widget {
           }
         }
       } compactTrailing: {
-        HStack(spacing: 4) {
-          Image(systemName: "person.3.fill")
-            .font(.caption2)
-          Text("\(context.state.activePlayersCount)")
-            .font(.caption2)
+        if let subOut = context.state.subOutPlayerName,
+          let subIn = context.state.subInPlayerName
+        {
+          Text("\(subOut) → \(subIn)")
+            .font(.system(size: 12))
+            .foregroundStyle(Color("AppOrange"))
+            .lineLimit(1)
         }
       } minimal: {
         Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
