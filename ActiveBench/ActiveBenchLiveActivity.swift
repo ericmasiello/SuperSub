@@ -15,67 +15,51 @@ import WidgetKit
 struct ActiveBenchLiveActivity: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: ActiveBenchAttributes.self) { context in
-      // Lock screen/banner UI goes here
       VStack(spacing: 12) {
-        // Session name
-        Text(context.attributes.sessionName)
-          .font(.headline)
-          .foregroundStyle(.secondary)
-
-        // Timer display
         VStack(spacing: 4) {
           Text("Current Play Time")
             .font(.caption)
             .foregroundStyle(.secondary)
 
-          if context.state.isRunning {
-            Text(context.state.timerRefDate, style: .timer)
-              .font(.system(size: 32, weight: .bold, design: .rounded))
-              .monospacedDigit()
-              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-          } else {
-            Text(formatTime(context.state.accumulatedTime))
-              .font(.system(size: 32, weight: .bold, design: .rounded))
-              .monospacedDigit()
-              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-          }
-
-          if context.state.preferredPlayTimeSeconds > 0 {
-            HStack(spacing: 4) {
-              Image(
-                systemName: isOvertime(context.state) ? "exclamationmark.triangle.fill" : "clock"
-              )
-              if context.state.isRunning {
-                Text(overtimeDate(context.state), style: .timer)
-              } else {
-                Text(timeRemainingText(context.state))
-              }
+          HStack(alignment: .firstTextBaseline, spacing: 12) {
+            if context.state.isRunning {
+              Text(context.state.timerRefDate, style: .timer)
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            } else {
+              Text(formatTime(context.state.accumulatedTime))
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
             }
-            .font(.caption2)
-            .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
+
+            if let subOut = context.state.subOutPlayerName,
+              let subIn = context.state.subInPlayerName
+            {
+              Text("\(subOut) → \(subIn)")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color("AppOrange"))
+                .lineLimit(1)
+            }
           }
         }
 
-        // Timer status
         HStack(spacing: 16) {
-          HStack(spacing: 4) {
-            Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
-            Text(context.state.isRunning ? "Running" : "Paused")
-          }
-          .font(.caption)
+          Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
+            .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
 
           HStack(spacing: 4) {
             Image(systemName: "person.3.fill")
             Text("\(context.state.activePlayersCount) Active")
           }
-          .font(.caption)
 
           HStack(spacing: 4) {
             Image(systemName: "figure.seated")
             Text("\(context.state.benchedPlayersCount) Bench")
           }
-          .font(.caption)
         }
+        .font(.caption)
         .foregroundStyle(.secondary)
       }
       .padding()
@@ -84,64 +68,47 @@ struct ActiveBenchLiveActivity: Widget {
 
     } dynamicIsland: { context in
       DynamicIsland {
-        // Expanded UI goes here
         DynamicIslandExpandedRegion(.leading) {
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Play Time")
-              .font(.caption2)
-              .foregroundStyle(.secondary)
-            if context.state.isRunning {
-              Text(context.state.timerRefDate, style: .timer)
-                .font(.title3)
-                .fontWeight(.semibold)
-                .monospacedDigit()
-            } else {
-              Text(formatTime(context.state.accumulatedTime))
-                .font(.title3)
-                .fontWeight(.semibold)
-                .monospacedDigit()
-            }
-          }
-        }
-
-        DynamicIslandExpandedRegion(.trailing) {
-          VStack(alignment: .trailing, spacing: 2) {
-            Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
-              .font(.title2)
-              .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
-          }
-        }
-
-        DynamicIslandExpandedRegion(.bottom) {
-          HStack {
+          HStack(spacing: 12) {
             HStack(spacing: 4) {
               Image(systemName: "person.3.fill")
               Text("\(context.state.activePlayersCount)")
             }
-            .font(.caption)
-
-            Spacer()
 
             HStack(spacing: 4) {
               Image(systemName: "figure.seated")
               Text("\(context.state.benchedPlayersCount)")
             }
-            .font(.caption)
+          }
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        }
 
-            if context.state.preferredPlayTimeSeconds > 0 {
-              Spacer()
+        DynamicIslandExpandedRegion(.bottom) {
+          VStack(spacing: 4) {
+            if context.state.isRunning {
+              Text(context.state.timerRefDate, style: .timer)
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            } else {
+              Text(formatTime(context.state.accumulatedTime))
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            }
 
-              if context.state.isRunning {
-                Text(overtimeDate(context.state), style: .timer)
-                  .font(.caption)
-                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
-              } else {
-                Text(timeRemainingText(context.state))
-                  .font(.caption)
-                  .foregroundStyle(isOvertime(context.state) ? .red : .secondary)
-              }
+            if let subOut = context.state.subOutPlayerName,
+              let subIn = context.state.subInPlayerName
+            {
+              Text("\(subOut) → \(subIn)")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color("AppOrange"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             }
           }
+          .frame(maxWidth: .infinity)
         }
       } compactLeading: {
         HStack(spacing: 2) {
@@ -151,18 +118,22 @@ struct ActiveBenchLiveActivity: Widget {
             Text(context.state.timerRefDate, style: .timer)
               .font(.caption2)
               .monospacedDigit()
+              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
           } else {
             Text(formatTimeCompact(context.state.accumulatedTime))
               .font(.caption2)
               .monospacedDigit()
+              .foregroundStyle(isOvertime(context.state) ? .red : .primary)
           }
         }
       } compactTrailing: {
-        HStack(spacing: 4) {
-          Image(systemName: "person.3.fill")
-            .font(.caption2)
-          Text("\(context.state.activePlayersCount)")
-            .font(.caption2)
+        if let subOut = context.state.subOutPlayerName,
+          let subIn = context.state.subInPlayerName
+        {
+          Text("\(subOut) → \(subIn)")
+            .font(.system(size: 12))
+            .foregroundStyle(Color("AppOrange"))
+            .lineLimit(1)
         }
       } minimal: {
         Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
@@ -234,7 +205,9 @@ extension ActiveBenchAttributes.ContentState {
       accumulatedTime: 0,
       preferredPlayTimeSeconds: 180,
       activePlayersCount: 5,
-      benchedPlayersCount: 3
+      benchedPlayersCount: 3,
+      subOutPlayerName: "Alice",
+      subInPlayerName: "Bob"
     )
   }
 
@@ -245,7 +218,9 @@ extension ActiveBenchAttributes.ContentState {
       accumulatedTime: 90,
       preferredPlayTimeSeconds: 180,
       activePlayersCount: 5,
-      benchedPlayersCount: 3
+      benchedPlayersCount: 3,
+      subOutPlayerName: "Alice",
+      subInPlayerName: "Bob"
     )
   }
 
@@ -256,12 +231,38 @@ extension ActiveBenchAttributes.ContentState {
       accumulatedTime: 0,
       preferredPlayTimeSeconds: 180,
       activePlayersCount: 4,
-      benchedPlayersCount: 4
+      benchedPlayersCount: 4,
+      subOutPlayerName: "Charlie",
+      subInPlayerName: "Diana"
     )
   }
 }
 
 #Preview("Notification", as: .content, using: ActiveBenchAttributes.preview) {
+  ActiveBenchLiveActivity()
+} contentStates: {
+  ActiveBenchAttributes.ContentState.running
+  ActiveBenchAttributes.ContentState.paused
+  ActiveBenchAttributes.ContentState.overtime
+}
+
+#Preview("Dynamic Island Expanded", as: .dynamicIsland(.expanded), using: ActiveBenchAttributes.preview) {
+  ActiveBenchLiveActivity()
+} contentStates: {
+  ActiveBenchAttributes.ContentState.running
+  ActiveBenchAttributes.ContentState.paused
+  ActiveBenchAttributes.ContentState.overtime
+}
+
+#Preview("Dynamic Island Compact", as: .dynamicIsland(.compact), using: ActiveBenchAttributes.preview) {
+  ActiveBenchLiveActivity()
+} contentStates: {
+  ActiveBenchAttributes.ContentState.running
+  ActiveBenchAttributes.ContentState.paused
+  ActiveBenchAttributes.ContentState.overtime
+}
+
+#Preview("Dynamic Island Minimal", as: .dynamicIsland(.minimal), using: ActiveBenchAttributes.preview) {
   ActiveBenchLiveActivity()
 } contentStates: {
   ActiveBenchAttributes.ContentState.running
