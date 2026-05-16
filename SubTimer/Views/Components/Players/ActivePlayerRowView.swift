@@ -36,13 +36,13 @@ struct ActivePlayerRowView: View {
             }
 
             Spacer()
-
-            Image(systemName: "ellipsis.circle")
-                .foregroundStyle(.appPurple)
         }
         .padding()
         .contentShape(Rectangle())
-        .onLongPressGesture(minimumDuration: 0.5) { onTap() }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.5)
+                .onEnded { _ in onTap() }
+        )
         .accessibilityIdentifier("player.row.active")
     }
 }

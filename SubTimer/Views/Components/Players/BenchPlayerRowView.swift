@@ -23,13 +23,19 @@ struct BenchPlayerRowView: View {
         if canActivate {
             rowContent
                 .contentShape(Rectangle())
-                .onLongPressGesture(minimumDuration: 0.5) { onTap() }
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .onEnded { _ in onTap() }
+                )
                 .accessibilityIdentifier("player.row.bench")
         } else {
             rowContent
                 .contentShape(Rectangle())
                 .onTapGesture { onTap() }
-                .onLongPressGesture(minimumDuration: 0.5) { onTap() }
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .onEnded { _ in onTap() }
+                )
                 .accessibilityIdentifier("player.row.bench")
         }
     }
