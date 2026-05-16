@@ -56,6 +56,13 @@ import ActivityKit
 import SwiftData
 import SwiftUI
 
+private struct TimerVisibilityPreferenceKey: PreferenceKey {
+  static let defaultValue: CGRect = .zero
+  static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+    value = nextValue()
+  }
+}
+
 struct TimerView: View {
   @Environment(\.modelContext) private var modelContext
   @Query(sort: \Player.sortOrder) var players: [Player]
@@ -74,6 +81,7 @@ struct TimerView: View {
   @State private var cachedActiveManager: ActiveManager?
   @State private var showPinnedButton = false
   @State private var overtimeUpdateWork: DispatchWorkItem?
+  @State private var showCompactTimer = false
 
   var configuration: AppConfiguration {
     if let config = configurations.first {
@@ -211,27 +219,61 @@ struct TimerView: View {
   // MARK: - Main Timer View
 
   private var mainTimerView: some View {
-    ScrollView {
-      VStack(spacing: 24) {
-        timerControlsSection
-        preferredTimeDisplay
-        activePlayersSection
-        benchSection
-        if !temporarilyOutPlayers.isEmpty {
-          temporarilyOutSection
+    ScrollViewReader { scrollProxy in
+      ScrollView {
+        VStack(spacing: 24) {
+          timerControlsSection
+          preferredTimeDisplay
+            .id("fullTimer")
+            .background(
+              GeometryReader { geo in
+                Color.clear.preference(
+                  key: TimerVisibilityPreferenceKey.self,
+                  value: geo.frame(in: .named("timerScroll"))
+                )
+              }
+            )
+          activePlayersSection
+          benchSection
+          if !temporarilyOutPlayers.isEmpty {
+            temporarilyOutSection
+          }
+        }
+        .padding()
+      }
+      .coordinateSpace(name: "timerScroll")
+      .onPreferenceChange(TimerVisibilityPreferenceKey.self) { frame in
+        let isVisible = frame.maxY > 0
+        if showCompactTimer != !isVisible {
+          withAnimation(.easeInOut(duration: 0.25)) {
+            showCompactTimer = !isVisible
+          }
         }
       }
-      .padding()
-    }
-    .safeAreaInset(edge: .bottom) {
-      pinnedSubstituteButton
-        .opacity(showPinnedButton ? 1 : 0)
-        .offset(y: showPinnedButton ? 0 : 40)
-    }
-    .onAppear {
-      guard !showPinnedButton else { return }
-      withAnimation(.easeOut(duration: 0.45).delay(0.15)) {
-        showPinnedButton = true
+      .safeAreaInset(edge: .top) {
+        if showCompactTimer {
+          CompactTimerBarView(
+            currentPlayDuration: timerViewModel?.elapsedTime ?? 0,
+            preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
+            onTap: {
+              withAnimation {
+                scrollProxy.scrollTo("fullTimer", anchor: .top)
+              }
+            }
+          )
+          .transition(.move(edge: .top).combined(with: .opacity))
+        }
+      }
+      .safeAreaInset(edge: .bottom) {
+        pinnedSubstituteButton
+          .opacity(showPinnedButton ? 1 : 0)
+          .offset(y: showPinnedButton ? 0 : 40)
+      }
+      .onAppear {
+        guard !showPinnedButton else { return }
+        withAnimation(.easeOut(duration: 0.45).delay(0.15)) {
+          showPinnedButton = true
+        }
       }
     }
   }
