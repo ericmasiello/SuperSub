@@ -20,39 +20,53 @@ struct BenchPlayerRowView: View {
     // MARK: - Body
 
     var body: some View {
-        Button(action: onTap) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(player.name)
-                            .font(.headline)
-                        if isNextUp && !canActivate {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.caption)
-                        }
-                    }
-                    Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-
-                Spacer()
-
-                if canActivate {
-                    Button(action: onActivate) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.green)
-                    }
-                }
-            }
-            .padding()
-            .cornerRadius(8)
+        if canActivate {
+            rowContent
+                .contentShape(Rectangle())
+                .onLongPressGesture(minimumDuration: 0.5) { onTap() }
+                .accessibilityIdentifier("player.row.bench")
+        } else {
+            rowContent
+                .contentShape(Rectangle())
+                .onTapGesture { onTap() }
+                .onLongPressGesture(minimumDuration: 0.5) { onTap() }
+                .accessibilityIdentifier("player.row.bench")
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("player.row.bench")
+    }
+
+    // MARK: - Row Content
+
+    private var rowContent: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(player.name)
+                        .font(.headline)
+                    if isNextUp && !canActivate {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                    }
+                }
+                Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            Spacer()
+
+            if canActivate {
+                Button(action: onActivate) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding()
+        .cornerRadius(8)
     }
 }
 
