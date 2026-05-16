@@ -39,10 +39,12 @@ struct ActivePlayerRowView: View {
         }
         .padding()
         .contentShape(Rectangle())
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.5)
-                .onEnded { _ in onTap() }
-        )
+        .swipeActions(edge: .trailing) {
+            Button { onTap() } label: {
+                Label("Actions", systemImage: "ellipsis.circle")
+            }
+            .tint(.appPurple)
+        }
         .accessibilityIdentifier("player.row.active")
     }
 }
