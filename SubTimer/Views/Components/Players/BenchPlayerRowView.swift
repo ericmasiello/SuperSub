@@ -20,28 +20,8 @@ struct BenchPlayerRowView: View {
     // MARK: - Body
 
     var body: some View {
-        if canActivate {
-            rowContent
-                .contentShape(Rectangle())
-                .swipeActions(edge: .trailing) {
-                    Button { onTap() } label: {
-                        Label("Actions", systemImage: "ellipsis.circle")
-                    }
-                    .tint(.appPurple)
-                }
-                .accessibilityIdentifier("player.row.bench")
-        } else {
-            rowContent
-                .contentShape(Rectangle())
-                .onTapGesture { onTap() }
-                .swipeActions(edge: .trailing) {
-                    Button { onTap() } label: {
-                        Label("Actions", systemImage: "ellipsis.circle")
-                    }
-                    .tint(.appPurple)
-                }
-                .accessibilityIdentifier("player.row.bench")
-        }
+        rowContent
+            .accessibilityIdentifier("player.row.bench")
     }
 
     // MARK: - Row Content
@@ -65,6 +45,13 @@ struct BenchPlayerRowView: View {
             }
 
             Spacer()
+
+            Button(action: onTap) {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title2)
+                    .foregroundStyle(.appPurple)
+            }
+            .buttonStyle(.plain)
 
             if canActivate {
                 Button(action: onActivate) {

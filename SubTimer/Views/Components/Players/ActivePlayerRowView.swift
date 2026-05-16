@@ -36,15 +36,15 @@ struct ActivePlayerRowView: View {
             }
 
             Spacer()
+
+            Button(action: onTap) {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title2)
+                    .foregroundStyle(.appPurple)
+            }
+            .buttonStyle(.plain)
         }
         .padding()
-        .contentShape(Rectangle())
-        .swipeActions(edge: .trailing) {
-            Button { onTap() } label: {
-                Label("Actions", systemImage: "ellipsis.circle")
-            }
-            .tint(.appPurple)
-        }
         .accessibilityIdentifier("player.row.active")
     }
 }
