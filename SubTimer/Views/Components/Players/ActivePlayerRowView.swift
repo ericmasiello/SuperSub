@@ -18,32 +18,33 @@ struct ActivePlayerRowView: View {
     // MARK: - Body
 
     var body: some View {
-        Button(action: onTap) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(player.name)
-                            .font(.headline)
-                        if isNextToSubOut {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .foregroundStyle(.appOrange)
-                                .font(.caption)
-                        }
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(player.name)
+                        .font(.headline)
+                    if isNextToSubOut {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundStyle(.appOrange)
+                            .font(.caption)
                     }
-                    Text(TimeFormatter.format(player.currentPlayDuration))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
                 }
+                Text(TimeFormatter.format(player.currentPlayDuration))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
 
-                Spacer()
+            Spacer()
 
+            Button(action: onTap) {
                 Image(systemName: "ellipsis.circle")
+                    .font(.title2)
                     .foregroundStyle(.appPurple)
             }
-            .padding()
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding()
         .accessibilityIdentifier("player.row.active")
     }
 }

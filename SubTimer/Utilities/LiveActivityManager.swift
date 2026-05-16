@@ -118,7 +118,9 @@ class LiveActivityManager {
 
     print("🛑 Ending Live Activity")
     Task {
-      await activity.end(dismissalPolicy: .immediate)
+      let endState = activity.content.state
+      let endContent = ActivityContent(state: endState, staleDate: nil)
+      await activity.end(endContent, dismissalPolicy: .immediate)
       currentActivity = nil
       print("✅ Live Activity ended successfully")
     }
@@ -137,3 +139,4 @@ class LiveActivityManager {
     return overtime > Date() ? overtime : nil
   }
 }
+

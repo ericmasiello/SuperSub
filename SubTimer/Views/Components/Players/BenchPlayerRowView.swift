@@ -20,39 +20,50 @@ struct BenchPlayerRowView: View {
     // MARK: - Body
 
     var body: some View {
-        Button(action: onTap) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(player.name)
-                            .font(.headline)
-                        if isNextUp && !canActivate {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.caption)
-                        }
-                    }
-                    Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+        rowContent
+            .accessibilityIdentifier("player.row.bench")
+    }
 
-                Spacer()
+    // MARK: - Row Content
 
-                if canActivate {
-                    Button(action: onActivate) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
+    private var rowContent: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(player.name)
+                        .font(.headline)
+                    if isNextUp && !canActivate {
+                        Image(systemName: "arrow.up.circle.fill")
                             .foregroundStyle(.green)
+                            .font(.caption)
                     }
                 }
+                Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
-            .padding()
-            .cornerRadius(8)
+
+            Spacer()
+
+            Button(action: onTap) {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title2)
+                    .foregroundStyle(.appPurple)
+            }
+            .buttonStyle(.plain)
+
+            if canActivate {
+                Button(action: onActivate) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("player.row.bench")
+        .padding()
+        .cornerRadius(8)
     }
 }
 
