@@ -224,8 +224,7 @@ struct TimerView: View {
         VStack(spacing: 24) {
           timerControlsSection
             .id("timerControls")
-          preferredTimeDisplay
-            .id("fullTimer")
+          preferredTimeDisplay            
             .background(
               GeometryReader { geo in
                 Color.clear.preference(
