@@ -223,6 +223,7 @@ struct TimerView: View {
       ScrollView {
         VStack(spacing: 24) {
           timerControlsSection
+            .id("timerControls")
           preferredTimeDisplay
             .id("fullTimer")
             .background(
@@ -257,7 +258,7 @@ struct TimerView: View {
             preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
             onTap: {
               withAnimation {
-                scrollProxy.scrollTo("fullTimer", anchor: .top)
+                scrollProxy.scrollTo("timerControls", anchor: .top)
               }
             }
           )
