@@ -1,0 +1,35 @@
+{
+  "configurations" : [
+    {
+      "id" : "E0C3EA7E-66AF-48B1-B874-899EAA151017",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:SubTimer.xcodeproj",
+      "identifier" : "4D0DDD832F3F38E400DD633E",
+      "name" : "SubTimer"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:SubTimer.xcodeproj",
+        "identifier" : "4D0DDD942F3F38E500DD633E",
+        "name" : "SubTimerTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:SubTimer.xcodeproj",
+        "identifier" : "4D0DDD9E2F3F38E500DD633E",
+        "name" : "SubTimerUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
