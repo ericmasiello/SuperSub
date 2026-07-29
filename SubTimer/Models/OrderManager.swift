@@ -1,42 +1,50 @@
 //
-//  BenchManager.swift
+//  OrderManager.swift
 //  SubTimer
 //
-//  Created by SubTimer on 2/13/26.
+//  Created by SubTimer on 7/29/26.
 //
 
 import Foundation
 import SwiftData
 
+enum PlayerOrderRole: String, Codable {
+    case bench
+    case active
+}
+
 @Model
-final class BenchManager {
+final class OrderManager {
     var id: UUID
+    var role: PlayerOrderRole
     var playerOrder: [UUID]
     var createdDate: Date
     var updatedDate: Date
 
     init(
+        role: PlayerOrderRole,
         id: UUID = UUID(),
         playerOrder: [UUID] = [],
         createdDate: Date = Date(),
         updatedDate: Date = Date()
     ) {
         self.id = id
+        self.role = role
         self.playerOrder = playerOrder
         self.createdDate = createdDate
         self.updatedDate = updatedDate
     }
 
-    // MARK: - Bench Order Management
+    // MARK: - Order Management
 
-    /// Adds a player to the end of the bench
+    /// Adds a player to the end of the order
     func addPlayer(_ playerId: UUID) {
         guard !playerOrder.contains(playerId) else { return }
         playerOrder.append(playerId)
         updatedDate = Date()
     }
 
-    /// Inserts a player at a specific position in the bench order
+    /// Inserts a player at a specific position in the order
     func insertPlayer(_ playerId: UUID, at index: Int) {
         guard !playerOrder.contains(playerId) else { return }
         let safeIndex = min(max(0, index), playerOrder.count)
@@ -44,13 +52,13 @@ final class BenchManager {
         updatedDate = Date()
     }
 
-    /// Removes a player from the bench
+    /// Removes a player from the order
     func removePlayer(_ playerId: UUID) {
         playerOrder.removeAll { $0 == playerId }
         updatedDate = Date()
     }
 
-    /// Moves a player to a specific position in the bench order
+    /// Moves a player to a specific position in the order
     func movePlayer(_ playerId: UUID, to index: Int) {
         guard let currentIndex = playerOrder.firstIndex(of: playerId) else { return }
         playerOrder.remove(at: currentIndex)
@@ -59,23 +67,23 @@ final class BenchManager {
         updatedDate = Date()
     }
 
-    /// Gets the position of a player in the bench order (0-indexed)
+    /// Gets the position of a player in the order (0-indexed)
     func position(of playerId: UUID) -> Int? {
         return playerOrder.firstIndex(of: playerId)
     }
 
-    /// Returns the player ID at the front of the bench (next to play)
+    /// Returns the player ID at the front of the order (next up)
     var nextPlayer: UUID? {
         return playerOrder.first
     }
 
-    /// Clears all players from the bench
+    /// Clears all players from the order
     func clear() {
         playerOrder.removeAll()
         updatedDate = Date()
     }
 
-    /// Returns the number of players on the bench
+    /// Returns the number of players in the order
     var count: Int {
         return playerOrder.count
     }

@@ -1,8 +1,8 @@
 //
-//  ActiveManagerTests.swift
+//  OrderManagerTests.swift
 //  SubTimerTests
 //
-//  Created by SubTimer on 5/5/26.
+//  Created by SubTimer on 7/29/26.
 //
 
 import Foundation
@@ -10,16 +10,22 @@ import Foundation
 import SwiftData
 import Testing
 
-struct ActiveManagerTests {
-    @Test func initialState() {
-        let manager = ActiveManager()
+/// Behavior shared by every role-scoped order-tracking instance (Bench, Active).
+/// Parameterized over `PlayerOrderRole` so both roles stay covered by one suite,
+/// per ADR-0004 (order lives in dedicated records, not on `Player`).
+struct OrderManagerTests {
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func initialState(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
+        #expect(manager.role == role)
         #expect(manager.count == 0)
         #expect(manager.nextPlayer == nil)
         #expect(manager.playerOrder.isEmpty)
     }
 
-    @Test func addPlayer() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func addPlayer(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
         let id2 = UUID()
 
@@ -32,8 +38,9 @@ struct ActiveManagerTests {
         #expect(manager.playerOrder == [id1, id2])
     }
 
-    @Test func addPlayerIgnoresDuplicates() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func addPlayerIgnoresDuplicates(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
 
         manager.addPlayer(id1)
@@ -41,8 +48,9 @@ struct ActiveManagerTests {
         #expect(manager.count == 1)
     }
 
-    @Test func removePlayer() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func removePlayer(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
         let id2 = UUID()
         let id3 = UUID()
@@ -56,8 +64,9 @@ struct ActiveManagerTests {
         #expect(manager.playerOrder == [id1, id3])
     }
 
-    @Test func removePlayerNotPresent() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func removePlayerNotPresent(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
 
         manager.addPlayer(id1)
@@ -65,8 +74,9 @@ struct ActiveManagerTests {
         #expect(manager.count == 1)
     }
 
-    @Test func movePlayer() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func movePlayer(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
         let id2 = UUID()
         let id3 = UUID()
@@ -79,8 +89,9 @@ struct ActiveManagerTests {
         #expect(manager.playerOrder == [id3, id1, id2])
     }
 
-    @Test func movePlayerToEnd() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func movePlayerToEnd(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
         let id2 = UUID()
         let id3 = UUID()
@@ -93,8 +104,9 @@ struct ActiveManagerTests {
         #expect(manager.playerOrder == [id2, id3, id1])
     }
 
-    @Test func movePlayerNotPresent() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func movePlayerNotPresent(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
 
         manager.addPlayer(id1)
@@ -102,8 +114,9 @@ struct ActiveManagerTests {
         #expect(manager.playerOrder == [id1])
     }
 
-    @Test func insertPlayer() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func insertPlayer(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
         let id2 = UUID()
         let id3 = UUID()
@@ -115,8 +128,9 @@ struct ActiveManagerTests {
         #expect(manager.playerOrder == [id1, id3, id2])
     }
 
-    @Test func insertPlayerIgnoresDuplicates() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func insertPlayerIgnoresDuplicates(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
 
         manager.addPlayer(id1)
@@ -124,8 +138,9 @@ struct ActiveManagerTests {
         #expect(manager.count == 1)
     }
 
-    @Test func insertPlayerClampsIndex() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func insertPlayerClampsIndex(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
         let id2 = UUID()
 
@@ -134,8 +149,9 @@ struct ActiveManagerTests {
         #expect(manager.playerOrder == [id1, id2])
     }
 
-    @Test func position() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func position(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
         let id2 = UUID()
 
@@ -147,8 +163,9 @@ struct ActiveManagerTests {
         #expect(manager.position(of: UUID()) == nil)
     }
 
-    @Test func nextPlayerReturnsFirstInOrder() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func nextPlayerReturnsFirstInOrder(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         let id1 = UUID()
         let id2 = UUID()
 
@@ -160,8 +177,9 @@ struct ActiveManagerTests {
         #expect(manager.nextPlayer == id2)
     }
 
-    @Test func clear() {
-        let manager = ActiveManager()
+    @Test(arguments: [PlayerOrderRole.bench, PlayerOrderRole.active])
+    func clear(role: PlayerOrderRole) {
+        let manager = OrderManager(role: role)
         manager.addPlayer(UUID())
         manager.addPlayer(UUID())
         manager.addPlayer(UUID())
@@ -169,5 +187,18 @@ struct ActiveManagerTests {
         manager.clear()
         #expect(manager.count == 0)
         #expect(manager.playerOrder.isEmpty)
+    }
+
+    @Test func roleDistinguishesInstances() {
+        let bench = OrderManager(role: .bench)
+        let active = OrderManager(role: .active)
+        let id1 = UUID()
+
+        bench.addPlayer(id1)
+
+        #expect(bench.role == .bench)
+        #expect(active.role == .active)
+        #expect(bench.count == 1)
+        #expect(active.count == 0)
     }
 }

@@ -52,7 +52,7 @@ struct SettingsView: View {
     @Query(sort: \Player.sortOrder) private var players: [Player]
     @Query private var configurations: [AppConfiguration]
     @Query(sort: \Session.startDate, order: .reverse) private var sessions: [Session]
-    @Query private var benchManagers: [BenchManager]
+    @Query private var orderManagers: [OrderManager]
 
     @State private var showingAddPlayer = false
     @State private var newPlayerName = ""
@@ -70,11 +70,11 @@ struct SettingsView: View {
         }
     }
 
-    private var benchManager: BenchManager {
-        if let manager = benchManagers.first {
+    private var benchManager: OrderManager {
+        if let manager = orderManagers.first(where: { $0.role == .bench }) {
             return manager
         } else {
-            let newManager = BenchManager()
+            let newManager = OrderManager(role: .bench)
             modelContext.insert(newManager)
             return newManager
         }
