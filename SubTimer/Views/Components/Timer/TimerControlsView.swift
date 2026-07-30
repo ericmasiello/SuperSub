@@ -33,6 +33,7 @@ struct TimerControlsView: View {
                 .foregroundStyle(.white)
                 .cornerRadius(12)
             }
+            .accessibilityIdentifier("timer.play.pause")
             Button(action: onReset) {
                 HStack {
                     Image(systemName: "arrow.clockwise.circle.fill")
