@@ -68,8 +68,7 @@ struct TimerView: View {
   @Query(sort: \Player.sortOrder) var players: [Player]
   @Query private var configurations: [AppConfiguration]
   @Query(sort: \Session.startDate, order: .reverse) var sessions: [Session]
-  @Query private var benchManagers: [BenchManager]
-  @Query private var activeManagers: [ActiveManager]
+  @Query private var orderManagers: [OrderManager]
 
   @State var timerViewModel: TimerViewModel?
   @State var showingManualSubstitution = false
@@ -77,8 +76,7 @@ struct TimerView: View {
   @State var showingPlayerActions: Player?
   @State private var benchOrder: [UUID] = []
   @State private var activeOrder: [UUID] = []
-  @State private var cachedBenchManager: BenchManager?
-  @State private var cachedActiveManager: ActiveManager?
+  @State private var cachedManagers: [PlayerOrderRole: OrderManager] = [:]
   @State private var showPinnedButton = false
   @State private var overtimeUpdateWork: DispatchWorkItem?
   @State private var showCompactTimer = false
@@ -93,44 +91,33 @@ struct TimerView: View {
     }
   }
 
-  var benchManager: BenchManager {
-    if let cached = cachedBenchManager {
+  func orderManager(for role: PlayerOrderRole) -> OrderManager {
+    if let cached = cachedManagers[role] {
       return cached
     }
 
-    if let manager = benchManagers.first {
-      cachedBenchManager = manager
+    if let manager = orderManagers.first(where: { $0.role == role }) {
+      cachedManagers[role] = manager
       return manager
     } else {
-      let newManager = BenchManager()
+      let newManager = OrderManager(role: role)
       modelContext.insert(newManager)
       try? modelContext.save()
-      cachedBenchManager = newManager
+      cachedManagers[role] = newManager
       return newManager
     }
   }
 
-  var activeManager: ActiveManager {
-    if let cached = cachedActiveManager {
-      return cached
-    }
+  var benchManager: OrderManager { orderManager(for: .bench) }
 
-    if let manager = activeManagers.first {
-      cachedActiveManager = manager
-      return manager
-    } else {
-      let newManager = ActiveManager()
-      modelContext.insert(newManager)
-      try? modelContext.save()
-      cachedActiveManager = newManager
-      return newManager
-    }
-  }
+  var activeManager: OrderManager { orderManager(for: .active) }
 
   var activePlayers: [Player] {
     let active = players.filter { $0.status == .active }
 
-    let orderToUse = activeOrder.isEmpty ? (activeManagers.first?.playerOrder ?? []) : activeOrder
+    let orderToUse = activeOrder.isEmpty
+      ? (orderManagers.first(where: { $0.role == .active })?.playerOrder ?? [])
+      : activeOrder
 
     return active.sorted { player1, player2 in
       let pos1 = orderToUse.firstIndex(of: player1.id)
@@ -152,7 +139,9 @@ struct TimerView: View {
     let benched = players.filter { $0.status == .benched }
 
     // Use the state-managed bench order for immediate UI updates
-    let orderToUse = benchOrder.isEmpty ? (benchManagers.first?.playerOrder ?? []) : benchOrder
+    let orderToUse = benchOrder.isEmpty
+      ? (orderManagers.first(where: { $0.role == .bench })?.playerOrder ?? [])
+      : benchOrder
 
     // Sort by bench order, then by sortOrder for players not in the bench order
     return benched.sorted { player1, player2 in
@@ -190,10 +179,10 @@ struct TimerView: View {
         _ = benchManager
         _ = activeManager
         initializeViewModel(allPlayers: players)
-        syncBenchManager()
-        syncActiveManager()
-        loadBenchOrder()
-        loadActiveOrder()
+        syncOrderManager(role: .bench, status: .benched)
+        syncOrderManager(role: .active, status: .active)
+        loadOrder(for: .bench)
+        loadOrder(for: .active)
       }
       .sheet(isPresented: $showingManualSubstitution) {
         if let playerToSubOut = selectedPlayerToSubOut {
@@ -318,7 +307,7 @@ struct TimerView: View {
       players: activePlayers,
       maxActiveCount: configuration.activePlayersCount,
       onPlayerTap: { player in showingPlayerActions = player },
-      onReorder: reorderActive
+      onReorder: { self.reorderPlayers($0, role: .active) }
     )
   }
 
@@ -331,7 +320,7 @@ struct TimerView: View {
       maxActiveCount: configuration.activePlayersCount,
       onPlayerTap: { player in showingPlayerActions = player },
       onActivatePlayer: activatePlayer,
-      onReorder: reorderBench
+      onReorder: { self.reorderPlayers($0, role: .bench) }
     )
   }
 
@@ -417,61 +406,44 @@ extension TimerView {
     timerViewModel?.onTimerTick = { updatePlayerTimes() }
   }
 
-  func syncBenchManager() {
-    let manager = benchManager
-    let currentBenched = players.filter { $0.status == .benched }.sorted {
-      $0.sortOrder < $1.sortOrder
-    }
+  /// Syncs a role-scoped order (players is already `@Query(sort: \Player.sortOrder)`,
+  /// so filtering it preserves roster order) against current player statuses: adds
+  /// players missing from the order, drops ones that changed status.
+  func syncOrderManager(role: PlayerOrderRole, status: PlayerStatus) {
+    let manager = orderManager(for: role)
+    let currentPlayers = players.filter { $0.status == status }
 
-    // Add any benched players that aren't in the manager (in sortOrder)
-    for player in currentBenched {
+    for player in currentPlayers {
       if manager.position(of: player.id) == nil {
         manager.addPlayer(player.id)
       }
     }
 
-    // Remove any players that are no longer benched
-    let benchedIds = Set(currentBenched.map { $0.id })
-    manager.playerOrder.removeAll { !benchedIds.contains($0) }
+    let currentIds = Set(currentPlayers.map { $0.id })
+    manager.playerOrder.removeAll { !currentIds.contains($0) }
     manager.updatedDate = Date()
   }
 
-  func loadBenchOrder() {
-    benchOrder = benchManager.playerOrder
-  }
-
-  func syncActiveManager() {
-    let manager = activeManager
-    let currentActive = players.filter { $0.status == .active }
-
-    for player in currentActive {
-      if manager.position(of: player.id) == nil {
-        manager.addPlayer(player.id)
-      }
+  func loadOrder(for role: PlayerOrderRole) {
+    switch role {
+    case .bench:
+      benchOrder = orderManager(for: role).playerOrder
+    case .active:
+      activeOrder = orderManager(for: role).playerOrder
     }
-
-    let activeIds = Set(currentActive.map { $0.id })
-    manager.playerOrder.removeAll { !activeIds.contains($0) }
-    manager.updatedDate = Date()
   }
 
-  func loadActiveOrder() {
-    activeOrder = activeManager.playerOrder
-  }
-
-  func reorderActive(_ reorderedPlayers: [Player]) {
+  func reorderPlayers(_ reorderedPlayers: [Player], role: PlayerOrderRole) {
     let newOrder = reorderedPlayers.map { $0.id }
 
-    activeOrder = newOrder
-
-    guard let manager = activeManagers.first else {
-      let newManager = ActiveManager()
-      newManager.playerOrder = newOrder
-      newManager.updatedDate = Date()
-      modelContext.insert(newManager)
-      return
+    switch role {
+    case .bench:
+      benchOrder = newOrder
+    case .active:
+      activeOrder = newOrder
     }
 
+    let manager = orderManager(for: role)
     manager.playerOrder.removeAll()
     manager.playerOrder.append(contentsOf: newOrder)
     manager.updatedDate = Date()
@@ -617,27 +589,6 @@ extension TimerView {
     benchManager.addPlayer(player.id)
     benchOrder = benchManager.playerOrder
     updateLiveActivity()
-  }
-
-  func reorderBench(_ reorderedPlayers: [Player]) {
-    let newOrder = reorderedPlayers.map { $0.id }
-
-    // Immediately update the state for instant UI feedback
-    benchOrder = newOrder
-
-    // Get the first bench manager (or create one)
-    guard let manager = benchManagers.first else {
-      let newManager = BenchManager()
-      newManager.playerOrder = newOrder
-      newManager.updatedDate = Date()
-      modelContext.insert(newManager)
-      return
-    }
-
-    // Update the bench manager with new order
-    manager.playerOrder.removeAll()
-    manager.playerOrder.append(contentsOf: newOrder)
-    manager.updatedDate = Date()
   }
 
   // MARK: - Session & Feedback

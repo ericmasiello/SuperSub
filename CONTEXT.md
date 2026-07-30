@@ -14,8 +14,8 @@ _Avoid_: Super Sub, SuperSub (see below — same product, different names in dif
 The in-app display name shown as the navigation title on the Timer screen. Same product as SubTimer and SuperSub, just a different name at a different layer — don't treat it as a separate feature or mode.
 
 **ActiveBench**:
-The name of the WidgetKit extension target/bundle that hosts the Live Activity and Dynamic Island UI. Distinct from the `ActiveManager` and `BenchManager` records described below, despite the similar name.
-_Avoid_: confusing with Active Manager / Bench Manager
+The name of the WidgetKit extension target/bundle that hosts the Live Activity and Dynamic Island UI. Distinct from the `OrderManager` records described below, despite the similar name.
+_Avoid_: confusing with Order Manager
 
 ### Roster & player status
 
