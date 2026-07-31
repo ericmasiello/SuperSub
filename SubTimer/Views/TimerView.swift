@@ -63,6 +63,27 @@ private struct TimerVisibilityPreferenceKey: PreferenceKey {
   }
 }
 
+/// The player-related sheet currently presented on `TimerView`, if any.
+/// Two separate `.sheet` modifiers on the same view (one for player actions,
+/// one for manual substitution) proved unreliable when handing off from one
+/// to the other - SwiftUI would silently drop the second presentation.
+/// Routing both through a single `.sheet(item:)` on this enum makes that
+/// hand-off just a normal state change within one presentation, not a
+/// cross-modifier coordination problem.
+private enum TimerSheet: Identifiable {
+  case playerActions(Player)
+  case manualSubstitution(playerToSubOut: Player)
+
+  var id: String {
+    switch self {
+    case .playerActions(let player):
+      "playerActions-\(player.id)"
+    case .manualSubstitution(let player):
+      "manualSubstitution-\(player.id)"
+    }
+  }
+}
+
 struct TimerView: View {
   @Environment(\.modelContext) private var modelContext
   @Query(sort: \Player.sortOrder) var players: [Player]
@@ -71,9 +92,7 @@ struct TimerView: View {
   @Query private var orderManagers: [OrderManager]
 
   @State var timerViewModel: TimerViewModel?
-  @State var showingManualSubstitution = false
-  @State var selectedPlayerToSubOut: Player?
-  @State var showingPlayerActions: Player?
+  @State private var activeSheet: TimerSheet?
   @State private var benchOrder: [UUID] = []
   @State private var activeOrder: [UUID] = []
   @State private var cachedManagers: [PlayerOrderRole: OrderManager] = [:]
@@ -184,13 +203,13 @@ struct TimerView: View {
         loadOrder(for: .bench)
         loadOrder(for: .active)
       }
-      .sheet(isPresented: $showingManualSubstitution) {
-        if let playerToSubOut = selectedPlayerToSubOut {
+      .sheet(item: $activeSheet) { sheet in
+        switch sheet {
+        case .playerActions(let player):
+          playerActionsSheet(player: player)
+        case .manualSubstitution(let playerToSubOut):
           manualSubstitutionSheet(playerToSubOut: playerToSubOut)
         }
-      }
-      .sheet(item: $showingPlayerActions) { player in
-        playerActionsSheet(player: player)
       }
     }
   }
@@ -306,7 +325,7 @@ struct TimerView: View {
     ActivePlayersSectionView(
       players: activePlayers,
       maxActiveCount: configuration.activePlayersCount,
-      onPlayerTap: { player in showingPlayerActions = player },
+      onPlayerTap: { player in activeSheet = .playerActions(player) },
       onReorder: { self.reorderPlayers($0, role: .active) }
     )
   }
@@ -318,7 +337,7 @@ struct TimerView: View {
       players: benchedPlayers,
       activePlayersCount: activePlayers.count,
       maxActiveCount: configuration.activePlayersCount,
-      onPlayerTap: { player in showingPlayerActions = player },
+      onPlayerTap: { player in activeSheet = .playerActions(player) },
       onActivatePlayer: activatePlayer,
       onReorder: { self.reorderPlayers($0, role: .bench) }
     )
@@ -356,8 +375,7 @@ struct TimerView: View {
         performManualSubstitution(subOut: playerToSubOut, subIn: benchPlayer)
       },
       onCancel: {
-        showingManualSubstitution = false
-        selectedPlayerToSubOut = nil
+        activeSheet = nil
       }
     )
   }
@@ -369,24 +387,22 @@ struct TimerView: View {
       player: player,
       canActivate: activePlayers.count < configuration.activePlayersCount,
       onSubstituteOut: {
-        selectedPlayerToSubOut = player
-        showingPlayerActions = nil
-        showingManualSubstitution = true
+        activeSheet = .manualSubstitution(playerToSubOut: player)
       },
       onActivatePlayer: {
         activatePlayer(player)
-        showingPlayerActions = nil
+        activeSheet = nil
       },
       onMarkTemporarilyOut: {
         markPlayerTemporarilyOut(player)
-        showingPlayerActions = nil
+        activeSheet = nil
       },
       onReturnToBench: {
         returnPlayerToBench(player)
-        showingPlayerActions = nil
+        activeSheet = nil
       },
       onClose: {
-        showingPlayerActions = nil
+        activeSheet = nil
       }
     )
   }
@@ -516,8 +532,7 @@ extension TimerView {
 
   func performManualSubstitution(subOut: Player, subIn: Player) {
     performSubstitution(subOut: subOut, subIn: subIn)
-    showingManualSubstitution = false
-    selectedPlayerToSubOut = nil
+    activeSheet = nil
   }
 
   private func performSubstitution(subOut: Player, subIn: Player) {

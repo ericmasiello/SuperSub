@@ -52,6 +52,7 @@ struct BenchPlayerRowView: View {
                     .foregroundStyle(.appPurple)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("More")
 
             if canActivate {
                 Button(action: onActivate) {

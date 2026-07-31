@@ -7,13 +7,27 @@
 //  UI TESTS FOR TIMERVIEW AND TIMER COMPONENTS
 //
 //  Tests cover:
-//  • Timer controls (play/pause)
+//  • Timer controls (play/pause) and accessibility of the initial screen state
 //  • Player status sections (active/bench/temporarily out)
-//  • Substitution functionality
-//  • Manual substitution flow
-//  • Player action sheet interactions
+//  • Substitution functionality (automatic + manual)
+//  • Player action sheet interactions and status changes
 //  • Preferred time display and overtime warnings
 //  • Navigation and UI state changes
+//
+//  CONSOLIDATION NOTE (see GitHub issue #44):
+//  Every `XCTestCase` method spawns a fresh app process in `setUpWithError`, so
+//  fewer test methods directly means fewer relaunches and a faster suite.
+//  Trivial single-assertion smoke tests that exercised the same initial screen
+//  state have been folded into `testInitialTimerScreenState()`, with each
+//  condition wrapped in its own `XCTContext.runActivity` so a failure still
+//  points at exactly which check broke. The stress tests (`testRapidButtonTaps`,
+//  `testMultipleSubstitutions`) and the integration test
+//  (`testCompleteTimerSession`) are kept as their own methods per the ticket.
+//
+//  All `sleep`/`usleep` synchronization has been replaced with
+//  `waitForExistence(timeout:)` or predicate-based waits on the actual
+//  condition being awaited (see `waitForLabelChange`/`waitForNonExistence`
+//  below).
 //
 
 import XCTest
@@ -38,457 +52,342 @@ final class TimerViewUITests: XCTestCase {
         app = nil
     }
 
-    // MARK: - Timer Controls Tests
+    // MARK: - Synchronization Helpers
 
+    /// Waits for `element`'s label to differ from `initialLabel`, instead of
+    /// sleeping for a fixed duration and hoping SwiftUI has re-rendered by then.
+    @discardableResult
+    private func waitForLabelChange(
+        of element: XCUIElement, from initialLabel: String, timeout: TimeInterval = 3
+    ) -> Bool {
+        let predicate = NSPredicate(format: "label != %@", initialLabel)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    /// Waits for `element` to stop existing (e.g. a sheet dismissing), instead
+    /// of sleeping for a fixed duration.
+    @discardableResult
+    private func waitForNonExistence(of element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    /// Each player row applies its `player.row.<status>` accessibility
+    /// identifier to the row's *children* rather than a single merged
+    /// element (SwiftUI decomposes the row into separate accessibility
+    /// elements here), so the row's `ellipsis.circle` action button - the
+    /// one actually wired to open the action sheet - is what carries that
+    /// identifier alongside its own explicit "More" label (set via
+    /// `.accessibilityLabel("More")` in `ActivePlayerRowView`/
+    /// `BenchPlayerRowView`, not left to the SF Symbol's implicit VoiceOver
+    /// label). Pass `status` ("active" or "bench") to scope to one section;
+    /// omit it to match either. Temporarily-out rows have no such button
+    /// (they only expose "Return to Bench"), so they're correctly excluded
+    /// from this query.
+    private func playerRowActionButtons(status: String? = nil) -> XCUIElementQuery {
+        let identifierClause = status.map { "identifier == 'player.row.\($0)'" }
+            ?? "identifier BEGINSWITH 'player.row'"
+        return app.buttons.matching(NSPredicate(format: "\(identifierClause) AND label == 'More'"))
+    }
+
+    // MARK: - Initial Timer Screen State
+
+    /// Consolidates every read-only smoke check against the Timer screen's
+    /// initial render: timer controls, preferred time display, player
+    /// sections, substitution button, accessibility labels, and navigation
+    /// away/back to Settings. Each condition is its own activity so a
+    /// failure identifies precisely which one broke.
     @MainActor
-    func testTimerStartAndStop() {
-        // Find the play/pause button
+    func testInitialTimerScreenState() {
         let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
 
+        XCTContext.runActivity(named: "Play/Pause button exists, is enabled, and is accessible") { _ in
+            XCTAssertTrue(playPauseButton.exists, "Play/Pause button should exist")
+            XCTAssertTrue(playPauseButton.isEnabled, "Play/Pause button should be enabled")
+            XCTAssertFalse(
+                playPauseButton.label.isEmpty, "Play/Pause button should have accessibility label"
+            )
+            XCTAssertNotNil(playPauseButton.value, "Play/Pause button should have accessibility value")
+        }
+
+        XCTContext.runActivity(named: "Preferred time display exists with the correct format") { _ in
+            let timeDisplay = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ':'")).firstMatch
+            XCTAssertTrue(timeDisplay.waitForExistence(timeout: 2), "Time display should exist")
+
+            let timeTexts = app.staticTexts.matching(
+                NSPredicate(format: "label MATCHES %@", "\\d+:\\d{2}(:\\d{2})?")
+            )
+            XCTAssertGreaterThan(
+                timeTexts.count, 0, "Should have at least one time display with correct format"
+            )
+        }
+
+        XCTContext.runActivity(named: "Active Players section exists and is accessible") { _ in
+            let activeSection = app.staticTexts["Active Players"]
+            XCTAssertTrue(activeSection.exists, "Active Players section should have accessibility label")
+        }
+
+        XCTContext.runActivity(named: "Bench section exists") { _ in
+            let benchSection = app.staticTexts["Bench"]
+            XCTAssertTrue(benchSection.exists, "Bench section should exist")
+        }
+
+        XCTContext.runActivity(named: "Temporarily Out section renders without crashing") { _ in
+            // This section only appears conditionally (when a player has that
+            // status); verifying the query doesn't crash is the coverage we
+            // actually have with the seeded fixture data.
+            let tempOutSection = app.staticTexts["Temporarily Out"]
+            _ = tempOutSection.exists
+        }
+
+        XCTContext.runActivity(named: "Player rows render with a tappable action button") { _ in
+            XCTAssertTrue(
+                playerRowActionButtons().count > 0,
+                "At least one player row should render its action ('More') button"
+            )
+        }
+
+        XCTContext.runActivity(named: "Substitute button exists and is accessible") { _ in
+            let subButton = app.buttons["Substitute"]
+            XCTAssertTrue(subButton.waitForExistence(timeout: 2), "Substitute button should exist")
+            XCTAssertFalse(
+                subButton.label.isEmpty, "Substitute button should have accessibility label"
+            )
+        }
+
+        XCTContext.runActivity(named: "Navigating to Settings and back to Timer") { _ in
+            let settingsTab = app.tabBars.buttons["Settings"]
+            XCTAssertTrue(settingsTab.exists, "Settings tab should exist")
+            settingsTab.tap()
+
+            let settingsTitle = app.navigationBars["Settings"]
+            XCTAssertTrue(
+                settingsTitle.waitForExistence(timeout: 2), "Should navigate to Settings view"
+            )
+
+            let timerTab = app.tabBars.buttons["Timer"]
+            timerTab.tap()
+
+            let activeSection = app.staticTexts["Active Players"]
+            XCTAssertTrue(
+                activeSection.waitForExistence(timeout: 2), "Should return to Timer view"
+            )
+        }
+    }
+
+    // MARK: - Timer Controls Behavior
+
+    /// Combines starting/stopping the timer (button label toggles and
+    /// returns to its original state) with the running-state smoke check
+    /// (time display updates while the timer runs).
+    @MainActor
+    func testTimerControlsBehavior() {
+        let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
         XCTAssertTrue(playPauseButton.exists, "Play/Pause button should exist")
 
-        // Initially, timer should be stopped (showing play icon)
         let initialLabel = playPauseButton.label
 
-        // Tap to start timer
-        playPauseButton.tap()
-
-        // Wait a moment for state to update
-        sleep(1)
-
-        // Button label should change (play → pause or vice versa)
-        let updatedLabel = playPauseButton.label
-        XCTAssertNotEqual(initialLabel, updatedLabel, "Button state should change after tap")
-
-        // Tap again to stop
-        playPauseButton.tap()
-        sleep(1)
-
-        // Should return to original state
-        XCTAssertEqual(playPauseButton.label, initialLabel, "Button should return to original state")
-    }
-
-    @MainActor
-    func testTimerControlsAccessibility() {
-        let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
-
-        XCTAssertTrue(playPauseButton.exists)
-        XCTAssertTrue(playPauseButton.isEnabled, "Play/Pause button should be enabled")
-        XCTAssertFalse(playPauseButton.label.isEmpty, "Button should have accessible label")
-    }
-
-    // MARK: - Preferred Time Display Tests
-
-    @MainActor
-    func testPreferredTimeDisplayExists() {
-        // Check that the time display is visible
-        let timeDisplay = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ':'")).firstMatch
-
-        XCTAssertTrue(timeDisplay.waitForExistence(timeout: 2), "Time display should exist")
-    }
-
-    @MainActor
-    func testPreferredTimeDisplayFormat() {
-        // Time should be in M:SS or H:MM:SS format
-        let timeTexts = app.staticTexts.matching(
-            NSPredicate(format: "label MATCHES %@", "\\d+:\\d{2}(:\\d{2})?")
-        )
-
-        XCTAssertGreaterThan(
-            timeTexts.count, 0, "Should have at least one time display with correct format"
-        )
-    }
-
-    // MARK: - Player Section Tests
-
-    @MainActor
-    func testActivePlayersSectionExists() {
-        // Check for Active Players section
-        let activeSection = app.staticTexts["Active Players"]
-        XCTAssertTrue(activeSection.exists, "Active Players section should exist")
-    }
-
-    @MainActor
-    func testBenchSectionExists() {
-        // Check for Bench section
-        let benchSection = app.staticTexts["Bench"]
-        XCTAssertTrue(benchSection.exists, "Bench section should exist")
-    }
-
-    @MainActor
-    func testTemporarilyOutSectionExists() {
-        // Check for Temporarily Out section (may not always be visible)
-        let tempOutSection = app.staticTexts["Temporarily Out"]
-
-        // This section appears conditionally
-        // We'll just verify it doesn't crash when checking
-        _ = tempOutSection.exists
-    }
-
-    @MainActor
-    func testPlayerRowsDisplayed() {
-        // Count player rows in the list
-        let playerRows = app.cells.matching(identifier: "player.row")
-
-        // Should have at least some players (depends on setup)
-        // This is a smoke test to ensure rows render
-        XCTAssertTrue(playerRows.count >= 0, "Player rows should render without crashing")
-    }
-
-    // MARK: - Substitution Button Tests
-
-    @MainActor
-    func testSubstitutionButtonExists() {
-        let subButton = app.buttons["Substitute"]
-
-        XCTAssertTrue(subButton.waitForExistence(timeout: 2), "Substitute button should exist")
-    }
-
-    @MainActor
-    func testSubstitutionButtonTap() {
-        let subButton = app.buttons["Substitute"]
-
-        if subButton.exists, subButton.isEnabled {
-            subButton.tap()
-
-            // After substitution, should still be on timer view
-            XCTAssertTrue(
-                app.navigationBars["Timer"].exists || app.staticTexts["Active Players"].exists,
-                "Should remain on timer view after substitution"
-            )
-        }
-    }
-
-    @MainActor
-    func testManualSubstitutionButton() {
-        // Look for manual sub button (ellipsis or manual option)
-        let manualSubButton = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'manual' OR label == '...'")
-        ).firstMatch
-
-        if manualSubButton.exists {
-            manualSubButton.tap()
-
-            // Should show manual substitution sheet
-            let sheetTitle = app.staticTexts["Select Players"]
-            XCTAssertTrue(
-                sheetTitle.waitForExistence(timeout: 2),
-                "Manual substitution sheet should appear"
-            )
-
-            // Close sheet (look for Cancel or Done)
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
-            }
-        }
-    }
-
-    // MARK: - Player Actions Sheet Tests
-
-    @MainActor
-    func testPlayerRowTapShowsActionSheet() {
-        // Find first player row
-        let playerRows = app.cells.matching(identifier: "player.row")
-
-        if playerRows.count > 0 {
-            let firstRow = playerRows.element(boundBy: 0)
-            firstRow.tap()
-
-            // Should show action sheet
-            sleep(1)
-
-            // Look for common action buttons
-            let actionButtons = app.buttons.matching(
-                NSPredicate(
-                    format:
-                    "label CONTAINS[c] 'bench' OR label CONTAINS[c] 'substitute' OR label CONTAINS[c] 'activate'"
-                )
-            )
-
-            // At least some action should be available
-            XCTAssertTrue(
-                actionButtons.count > 0 || app.buttons["Cancel"].exists,
-                "Action sheet should show with options"
-            )
-
-            // Close sheet
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
-            } else {
-                // Tap outside to dismiss
-                app.tap()
-            }
-        }
-    }
-
-    // MARK: - Player Status Change Tests
-
-    @MainActor
-    func testBenchPlayerFromActionSheet() {
-        // Find an active player row
-        let playerRows = app.cells.matching(identifier: "player.row.active")
-
-        if playerRows.count > 0 {
-            let firstActivePlayer = playerRows.element(boundBy: 0)
-            let playerName = firstActivePlayer.staticTexts.element(boundBy: 0).label
-
-            firstActivePlayer.tap()
-            sleep(1)
-
-            // Look for "Bench" action
-            let benchButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'bench'"))
-                .firstMatch
-
-            if benchButton.exists, benchButton.isEnabled {
-                benchButton.tap()
-                sleep(1)
-
-                // Verify player moved (check bench section)
-                let benchSection = app.staticTexts["Bench"]
-                XCTAssertTrue(benchSection.exists, "Bench section should exist after benching player")
-            }
-        }
-    }
-
-    @MainActor
-    func testActivatePlayerFromBench() {
-        // Find a benched player row
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
-
-        if benchRows.count > 0 {
-            let firstBenchPlayer = benchRows.element(boundBy: 0)
-            firstBenchPlayer.tap()
-            sleep(1)
-
-            // Look for "Activate" or "Sub In" action
-            let activateButton = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'activate' OR label CONTAINS[c] 'sub in'")
-            ).firstMatch
-
-            if activateButton.exists, activateButton.isEnabled {
-                activateButton.tap()
-                sleep(1)
-
-                // Should perform substitution
-                XCTAssertTrue(
-                    app.staticTexts["Active Players"].exists,
-                    "Active Players section should still exist"
-                )
-            }
-        }
-    }
-
-    @MainActor
-    func testTemporarilyOutPlayer() {
-        // Find an active player
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-
-        if activeRows.count > 0 {
-            let firstActivePlayer = activeRows.element(boundBy: 0)
-            firstActivePlayer.tap()
-            sleep(1)
-
-            // Look for "Temporarily Out" action
-            let tempOutButton = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'temporarily out' OR label CONTAINS[c] 'temp out'")
-            ).firstMatch
-
-            if tempOutButton.exists, tempOutButton.isEnabled {
-                tempOutButton.tap()
-                sleep(1)
-
-                // Temporarily Out section should appear
-                let tempOutSection = app.staticTexts["Temporarily Out"]
-                XCTAssertTrue(
-                    tempOutSection.exists,
-                    "Temporarily Out section should appear"
-                )
-            }
-        }
-    }
-
-    // MARK: - Manual Substitution Flow Tests
-
-    @MainActor
-    func testManualSubstitutionFlow() {
-        // Open manual substitution sheet
-        let manualSubButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'manual'"))
-            .firstMatch
-
-        if manualSubButton.exists {
-            manualSubButton.tap()
-            sleep(1)
-
-            // Sheet should appear
-            let sheetTitle = app.staticTexts["Select Players"]
-            XCTAssertTrue(
-                sheetTitle.waitForExistence(timeout: 2),
-                "Manual substitution sheet should appear"
-            )
-
-            // Look for player selection rows
-            let playerPickers = app.buttons.matching(
-                NSPredicate(format: "label BEGINSWITH 'In:' OR label BEGINSWITH 'Out:'")
-            )
-
-            if playerPickers.count >= 2 {
-                // Tap "In" player picker
-                let inPicker = playerPickers.matching(NSPredicate(format: "label BEGINSWITH 'In:'"))
-                    .firstMatch
-                if inPicker.exists {
-                    inPicker.tap()
-                    sleep(1)
-
-                    // Select a player from menu
-                    let playerOptions = app.buttons.matching(identifier: "player.option")
-                    if playerOptions.count > 0 {
-                        playerOptions.element(boundBy: 0).tap()
-                    }
-                }
-
-                // Tap "Out" player picker
-                let outPicker = playerPickers.matching(NSPredicate(format: "label BEGINSWITH 'Out:'"))
-                    .firstMatch
-                if outPicker.exists {
-                    outPicker.tap()
-                    sleep(1)
-
-                    // Select a different player
-                    let playerOptions = app.buttons.matching(identifier: "player.option")
-                    if playerOptions.count > 1 {
-                        playerOptions.element(boundBy: 1).tap()
-                    }
-                }
-
-                // Tap Substitute button
-                let substituteButton = app.buttons["Substitute"]
-                if substituteButton.exists, substituteButton.isEnabled {
-                    substituteButton.tap()
-                    sleep(1)
-
-                    // Sheet should dismiss
-                    XCTAssertFalse(
-                        sheetTitle.exists,
-                        "Manual substitution sheet should dismiss after substitution"
-                    )
-                }
-            }
-
-            // Close sheet if still open
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
-            }
-        }
-    }
-
-    // MARK: - Timer Running State Tests
-
-    @MainActor
-    func testTimerUpdatesWhileRunning() {
-        // Start timer
-        let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
-
-        if playPauseButton.exists {
+        XCTContext.runActivity(named: "Starting the timer changes the button label") { _ in
             playPauseButton.tap()
+            XCTAssertTrue(
+                waitForLabelChange(of: playPauseButton, from: initialLabel),
+                "Button state should change after tap"
+            )
+        }
 
-            // Get initial time display
+        XCTContext.runActivity(named: "Time display updates while the timer runs") { _ in
             let timeDisplay = app.staticTexts.matching(
                 NSPredicate(format: "label MATCHES %@", "\\d+:\\d{2}")
             ).firstMatch
             let initialTime = timeDisplay.label
 
-            // Wait for timer to tick
-            sleep(2)
+            // Smoke test: the time display should tick forward while running.
+            // Not asserted strictly (timer implementation may debounce ticks),
+            // but we wait for the actual condition rather than a blind sleep.
+            _ = waitForLabelChange(of: timeDisplay, from: initialTime, timeout: 3)
+            XCTAssertTrue(timeDisplay.exists, "Time display should still exist while timer runs")
+        }
 
-            // Time should have changed
-            let updatedTime = timeDisplay.label
-            // Note: This might be flaky depending on timer implementation
-            // Consider this a smoke test that the display exists
-
-            // Stop timer
+        XCTContext.runActivity(named: "Stopping the timer returns the button to its original state") { _ in
+            let runningLabel = playPauseButton.label
             playPauseButton.tap()
+            XCTAssertTrue(
+                waitForLabelChange(of: playPauseButton, from: runningLabel),
+                "Button state should change after tap"
+            )
+            XCTAssertEqual(playPauseButton.label, initialLabel, "Button should return to original state")
         }
     }
 
-    // MARK: - Empty State Tests
+    // MARK: - Player Action Sheet Flow
 
+    /// Exercises `PlayerActionsSheetView` across every status transition it
+    /// actually supports - "Substitute Out"/"Mark Temporarily Out" for an
+    /// active player, and "Activate Player" for a benched player - all
+    /// against the same app launch. (There is no direct "bench an active
+    /// player" action in this sheet: benching only happens via substitution.)
     @MainActor
-    func testEmptyBenchSection() {
-        // If bench is empty, should show appropriate UI
-        let benchSection = app.staticTexts["Bench"]
-
-        if benchSection.exists {
-            // Check for empty state message or player rows
-            let benchRows = app.cells.matching(identifier: "player.row.bench")
-
-            if benchRows.count == 0 {
-                // Empty bench is valid state
-                XCTAssertTrue(benchSection.exists, "Bench section should exist even when empty")
+    func testPlayerActionSheetFlow() {
+        XCTContext.runActivity(named: "Tapping an active player's row shows its status-appropriate actions") { _ in
+            let activeRowButtons = playerRowActionButtons(status: "active")
+            guard activeRowButtons.firstMatch.waitForExistence(timeout: 3) else {
+                XCTFail("Expected at least one active player row from seeded fixture data")
+                return
             }
+
+            activeRowButtons.element(boundBy: 0).tap()
+
+            XCTAssertTrue(
+                app.buttons["Substitute Out"].waitForExistence(timeout: 2),
+                "Substitute Out action should be available for an active player"
+            )
+            XCTAssertTrue(
+                app.buttons["Mark Temporarily Out"].exists,
+                "Mark Temporarily Out action should be available for an active player"
+            )
+
+            let closeButton = app.buttons["Close"]
+            closeButton.tap()
+            XCTAssertTrue(waitForNonExistence(of: closeButton), "Action sheet should dismiss")
         }
-    }
 
-    // MARK: - Navigation Tests
+        XCTContext.runActivity(named: "Marking an active player temporarily out shows that section") { _ in
+            let activeRowButtons = playerRowActionButtons(status: "active")
+            guard activeRowButtons.firstMatch.waitForExistence(timeout: 3) else {
+                XCTFail("Expected at least one active player row from seeded fixture data")
+                return
+            }
 
-    @MainActor
-    func testNavigationToSettings() {
-        // Switch to Settings tab
-        let settingsTab = app.tabBars.buttons["Settings"]
+            activeRowButtons.element(boundBy: 0).tap()
 
-        XCTAssertTrue(settingsTab.exists, "Settings tab should exist")
-        settingsTab.tap()
+            let tempOutButton = app.buttons["Mark Temporarily Out"]
+            guard tempOutButton.waitForExistence(timeout: 2) else {
+                XCTFail("Mark Temporarily Out action should be available")
+                return
+            }
+            tempOutButton.tap()
 
-        // Verify we're on Settings
-        let settingsTitle = app.navigationBars["Settings"]
-        XCTAssertTrue(
-            settingsTitle.waitForExistence(timeout: 2),
-            "Should navigate to Settings view"
-        )
-
-        // Return to Timer
-        let timerTab = app.tabBars.buttons["Timer"]
-        timerTab.tap()
-
-        // Verify we're back
-        let activeSection = app.staticTexts["Active Players"]
-        XCTAssertTrue(
-            activeSection.waitForExistence(timeout: 2),
-            "Should return to Timer view"
-        )
-    }
-
-    // MARK: - Accessibility Tests
-
-    @MainActor
-    func testAccessibilityLabels() {
-        // Verify key elements have accessibility labels
-        let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
-        XCTAssertFalse(
-            playPauseButton.label.isEmpty, "Play/Pause button should have accessibility label"
-        )
-
-        let substituteButton = app.buttons["Substitute"]
-        if substituteButton.exists {
-            XCTAssertFalse(
-                substituteButton.label.isEmpty, "Substitute button should have accessibility label"
+            let tempOutSection = app.staticTexts["Temporarily Out"]
+            XCTAssertTrue(
+                tempOutSection.waitForExistence(timeout: 2), "Temporarily Out section should appear"
             )
         }
 
-        // Section headers should be accessible
-        let activeSection = app.staticTexts["Active Players"]
-        XCTAssertTrue(activeSection.exists, "Active Players section should have accessibility label")
+        XCTContext.runActivity(named: "Activating a benched player moves them to Active Players") { _ in
+            let benchRowButtons = playerRowActionButtons(status: "bench")
+            guard benchRowButtons.firstMatch.waitForExistence(timeout: 3) else {
+                XCTFail("Expected at least one benched player row from seeded fixture data")
+                return
+            }
+
+            benchRowButtons.element(boundBy: 0).tap()
+
+            let activateButton = app.buttons["Activate Player"]
+            guard activateButton.waitForExistence(timeout: 2) else {
+                // Only offered when the active roster has room; the previous
+                // activity already freed a slot, so this should normally be
+                // available, but close gracefully rather than fail if not.
+                app.buttons["Close"].tap()
+                return
+            }
+            activateButton.tap()
+
+            let activeSection = app.staticTexts["Active Players"]
+            XCTAssertTrue(
+                activeSection.waitForExistence(timeout: 2),
+                "Active Players section should still exist after activating a player"
+            )
+        }
     }
 
-    @MainActor
-    func testVoiceOverNavigation() {
-        // Enable accessibility features for testing
-        let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
+    // MARK: - Substitution Flows
 
-        XCTAssertTrue(playPauseButton.exists)
-        XCTAssertNotNil(playPauseButton.value, "Button should have accessibility value")
+    /// Combines the automatic substitute-button flow with the manual
+    /// substitution flow, which is reached via an active player's action
+    /// sheet ("Substitute Out") rather than a standalone button on the main
+    /// screen - `ManualSubstitutionSheetView` presents a plain list of bench
+    /// players to sub in, titled "Select Player to Sub In".
+    @MainActor
+    func testSubstitutionFlows() {
+        XCTContext.runActivity(named: "Automatic substitution keeps the user on the Timer view") { _ in
+            let subButton = app.buttons["Substitute"]
+            guard subButton.waitForExistence(timeout: 3), subButton.isEnabled else {
+                XCTFail("Substitute button should exist and be enabled from seeded fixture data")
+                return
+            }
+
+            subButton.tap()
+            XCTAssertTrue(
+                app.navigationBars["Timer"].exists || app.staticTexts["Active Players"].exists,
+                "Should remain on timer view after substitution"
+            )
+        }
+
+        XCTContext.runActivity(named: "Manual substitution via the action sheet can be cancelled") { _ in
+            let activeRowButtons = playerRowActionButtons(status: "active")
+            guard activeRowButtons.firstMatch.waitForExistence(timeout: 3) else {
+                XCTFail("Expected at least one active player row from seeded fixture data")
+                return
+            }
+            activeRowButtons.element(boundBy: 0).tap()
+
+            let substituteOutButton = app.buttons["Substitute Out"]
+            guard substituteOutButton.waitForExistence(timeout: 2) else {
+                XCTFail("Substitute Out action should be available")
+                return
+            }
+            substituteOutButton.tap()
+
+            let sheetTitle = app.navigationBars["Select Player to Sub In"]
+            guard sheetTitle.waitForExistence(timeout: 3) else {
+                XCTFail("Manual substitution sheet should appear")
+                return
+            }
+
+            let cancelButton = app.buttons["Cancel"]
+            XCTAssertTrue(cancelButton.exists, "Manual substitution sheet should offer Cancel")
+            cancelButton.tap()
+            XCTAssertTrue(waitForNonExistence(of: sheetTitle), "Sheet should dismiss on cancel")
+        }
+
+        XCTContext.runActivity(named: "Manual substitution via the action sheet can select a bench player") { _ in
+            let activeRowButtons = playerRowActionButtons(status: "active")
+            guard activeRowButtons.firstMatch.waitForExistence(timeout: 3) else {
+                XCTFail("Expected at least one active player row from seeded fixture data")
+                return
+            }
+            activeRowButtons.element(boundBy: 0).tap()
+
+            let substituteOutButton = app.buttons["Substitute Out"]
+            guard substituteOutButton.waitForExistence(timeout: 2) else {
+                XCTFail("Substitute Out action should be available")
+                return
+            }
+            substituteOutButton.tap()
+
+            let sheetTitle = app.navigationBars["Select Player to Sub In"]
+            guard sheetTitle.waitForExistence(timeout: 2) else {
+                XCTFail("Manual substitution sheet should appear")
+                return
+            }
+
+            // Rows here are plain Buttons combining a player's name and total
+            // play time, with no accessibility identifier of their own;
+            // "Total:" reliably scopes the match to a bench-player row.
+            let benchPlayerRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Total:'")).firstMatch
+            guard benchPlayerRow.waitForExistence(timeout: 2) else {
+                XCTFail("Expected at least one bench player to sub in")
+                return
+            }
+            benchPlayerRow.tap()
+
+            XCTAssertTrue(
+                waitForNonExistence(of: sheetTitle),
+                "Manual substitution sheet should dismiss after selecting a player"
+            )
+        }
     }
 
     // MARK: - Stress Tests
@@ -498,10 +397,11 @@ final class TimerViewUITests: XCTestCase {
         let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
 
         if playPauseButton.exists {
-            // Rapidly tap button multiple times
+            // Rapidly tap the button back-to-back with no artificial delay -
+            // XCUIElement.tap() already synchronizes on hittability, so this
+            // is a stronger stress test than pacing taps with usleep.
             for _ in 1 ... 5 {
                 playPauseButton.tap()
-                usleep(100_000) // 0.1 second
             }
 
             // App should still be responsive
@@ -513,18 +413,23 @@ final class TimerViewUITests: XCTestCase {
     @MainActor
     func testMultipleSubstitutions() {
         let substituteButton = app.buttons["Substitute"]
+        let activeSection = app.staticTexts["Active Players"]
 
         if substituteButton.exists, substituteButton.isEnabled {
-            // Perform multiple substitutions
+            // Perform multiple substitutions, waiting for the UI to settle
+            // (Active Players section re-rendering) between taps instead of
+            // sleeping for a fixed duration.
             for _ in 1 ... 3 {
                 substituteButton.tap()
-                sleep(1)
+                XCTAssertTrue(
+                    activeSection.waitForExistence(timeout: 2),
+                    "UI should remain stable after each substitution"
+                )
             }
 
             // App should still be stable
             XCTAssertTrue(
-                app.staticTexts["Active Players"].exists,
-                "UI should remain stable after multiple substitutions"
+                activeSection.exists, "UI should remain stable after multiple substitutions"
             )
         }
     }
@@ -536,26 +441,29 @@ final class TimerViewUITests: XCTestCase {
         // Start timer
         let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
         if playPauseButton.exists {
+            let initialLabel = playPauseButton.label
             playPauseButton.tap()
-            sleep(2)
+            waitForLabelChange(of: playPauseButton, from: initialLabel)
 
             // Perform substitution
             let substituteButton = app.buttons["Substitute"]
             if substituteButton.exists, substituteButton.isEnabled {
+                let activeSection = app.staticTexts["Active Players"]
                 substituteButton.tap()
-                sleep(1)
+                _ = activeSection.waitForExistence(timeout: 2)
             }
 
             // Change player status
-            let playerRows = app.cells.matching(identifier: "player.row")
-            if playerRows.count > 0 {
-                playerRows.element(boundBy: 0).tap()
-                sleep(1)
+            let rowActionButtons = playerRowActionButtons()
+            if rowActionButtons.count > 0 {
+                let closeButton = app.buttons["Close"]
+                rowActionButtons.element(boundBy: 0).tap()
+                _ = closeButton.waitForExistence(timeout: 2)
 
-                // Cancel action sheet
-                let cancelButton = app.buttons["Cancel"]
-                if cancelButton.exists {
-                    cancelButton.tap()
+                // Close the action sheet without changing anything
+                if closeButton.exists {
+                    closeButton.tap()
+                    _ = waitForNonExistence(of: closeButton)
                 }
             }
 
