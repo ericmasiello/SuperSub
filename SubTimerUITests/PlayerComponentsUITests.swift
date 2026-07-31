@@ -17,32 +17,6 @@
 //  • Time display formatting
 //  • Interactive elements and accessibility
 //
-//  CONSOLIDATION NOTE (see GitHub issue #45):
-//  Every `XCTestCase` method spawns a fresh app process in `setUpWithError`,
-//  so fewer test methods directly means fewer relaunches and a faster suite
-//  (same approach as the TimerViewUITests hardening in issue #44). Trivial
-//  single-assertion smoke tests that exercised the same row/section state
-//  have been folded into per-component-state test methods below, with each
-//  condition wrapped in its own `XCTContext.runActivity` so a failure still
-//  points at exactly which check broke. The two `measure()` performance
-//  tests are kept as their own methods per the ticket.
-//
-//  ROOT CAUSE OF THE PRE-EXISTING FAILURES (testBenchPlayerRowDisplaysName,
-//  testMultiplePlayerRowsRenderCorrectly, testPlayerRowsHaveUniqueNames):
-//  `ActivePlayerRowView`/`BenchPlayerRowView` apply
-//  `.accessibilityIdentifier("player.row.<status>")` to an HStack that also
-//  contains an interactive "More" button. SwiftUI pushes that identifier
-//  onto the button rather than merging it onto the List row itself - the
-//  same quirk documented in `TimerViewUITests.playerRowActionButtons` from
-//  the #44 fix - so `app.cells.matching(identifier:)` always returned zero
-//  matches here, regardless of how many players were actually seeded.
-//  Queries below use `app.cells.containing(.button, identifier:)` to find
-//  the row via the button it actually carries the identifier on, which
-//  works no matter where SwiftUI decides to surface it.
-//
-//  All `sleep`/`usleep` synchronization has been replaced with
-//  `waitForExistence(timeout:)` on the actual condition being awaited.
-//
 
 import XCTest
 
@@ -74,10 +48,11 @@ final class PlayerComponentsUITests: XCTestCase {
 
     // MARK: - Row Query Helpers
 
-    /// `ActivePlayerRowView`/`BenchPlayerRowView` carry their
-    /// `player.row.<status>` accessibility identifier on the row's "More"
-    /// action button rather than on the List row itself (see file header).
-    /// Matching cells that *contain* that button finds the actual row -
+    /// `ActivePlayerRowView`/`BenchPlayerRowView` apply their
+    /// `.accessibilityIdentifier("player.row.<status>")` to an HStack that
+    /// also contains an interactive "More" button; SwiftUI pushes that
+    /// identifier onto the button's leaves rather than the List row itself,
+    /// so matching cells that *contain* that button finds the actual row -
     /// including its name/time text - regardless of where the identifier
     /// physically surfaces.
     private func playerRow(status: String) -> XCUIElementQuery {
@@ -191,12 +166,13 @@ final class PlayerComponentsUITests: XCTestCase {
     /// row: name, current play time, and its accessible action button.
     ///
     /// The dropped `testActivePlayerRowAccessibility` originally asserted
-    /// `firstRow.value` was non-nil, but under the old broken query that
-    /// assertion never actually ran (see file header). Once the query is
-    /// fixed, a `Cell`/row container has no accessibility "value" trait
-    /// (confirmed via `app.debugDescription`), so that check is replaced
-    /// below with a real one - that the row's action button is present and
-    /// enabled - rather than restoring an assertion that would now fail.
+    /// `firstRow.value` was non-nil, but that never actually ran under the
+    /// old `app.cells.matching(identifier:)` query (always zero matches).
+    /// With the query fixed, a `Cell`/row container turns out to have no
+    /// accessibility "value" trait (confirmed via `app.debugDescription`),
+    /// so that check is replaced below with a real one - that the row's
+    /// action button is present and enabled - rather than restoring an
+    /// assertion that would now fail.
     @MainActor
     func testActivePlayerRowRendersContent() {
         let activeRows = playerRow(status: "active")
@@ -266,10 +242,8 @@ final class PlayerComponentsUITests: XCTestCase {
 
     // MARK: - Multi-Row Rendering & Identity
 
-    /// Fixes the two previously-failing tests at their root cause: both
-    /// queried `app.cells.matching(identifier: "player.row...")` directly,
-    /// which always returned zero matches (see file header). Using
-    /// `playerRow(status:)` finds the actual rows.
+    /// Verifies rendered rows exist across all sections and that every
+    /// active/bench player has a unique displayed name.
     @MainActor
     func testMultiplePlayerRowsRenderWithUniqueIdentity() {
         let activeRows = playerRow(status: "active")
@@ -390,10 +364,9 @@ final class PlayerComponentsUITests: XCTestCase {
 
     @MainActor
     func testPlayerRowsRenderPerformance() {
-        // Measure time to query player rows. Uses `playerRow(status:)`
-        // (see file header) rather than the raw `.cells.matching(identifier:)`
-        // query, which always returns zero matches and would measure
-        // querying an empty collection.
+        // Measures querying real rows via `playerRow(status:)`, not the raw
+        // `.cells.matching(identifier:)` form, which always returns zero
+        // matches and would measure querying an empty collection instead.
         measure(metrics: [XCTClockMetric()]) {
             _ = playerRow(status: "active").count
         }

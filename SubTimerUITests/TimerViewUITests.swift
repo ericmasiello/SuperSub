@@ -14,21 +14,6 @@
 //  • Preferred time display and overtime warnings
 //  • Navigation and UI state changes
 //
-//  CONSOLIDATION NOTE (see GitHub issue #44):
-//  Every `XCTestCase` method spawns a fresh app process in `setUpWithError`, so
-//  fewer test methods directly means fewer relaunches and a faster suite.
-//  Trivial single-assertion smoke tests that exercised the same initial screen
-//  state have been folded into `testInitialTimerScreenState()`, with each
-//  condition wrapped in its own `XCTContext.runActivity` so a failure still
-//  points at exactly which check broke. The stress tests (`testRapidButtonTaps`,
-//  `testMultipleSubstitutions`) and the integration test
-//  (`testCompleteTimerSession`) are kept as their own methods per the ticket.
-//
-//  All `sleep`/`usleep` synchronization has been replaced with
-//  `waitForExistence(timeout:)` or predicate-based waits on the actual
-//  condition being awaited (see `waitForLabelChange`/`waitForNonExistence`
-//  below).
-//
 
 import XCTest
 
