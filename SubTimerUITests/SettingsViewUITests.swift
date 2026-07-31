@@ -7,17 +7,38 @@
 //  UI TESTS FOR SETTINGSVIEW AND SETTINGS COMPONENTS
 //
 //  Tests cover:
-//  • Player management (add, edit, delete, reorder)
+//  • Player management (add, edit, delete)
 //  • Configuration settings (active players count, preferred time)
 //  • Session history display and management
 //  • Form validation and error states
 //  • Navigation and sheet presentations
 //  • Accessibility and user interactions
 //
+//  CONSOLIDATION NOTE (see GitHub issue #46):
+//  Every `XCTestCase` method spawns a fresh app process in `setUpWithError`, so
+//  fewer test methods directly means fewer relaunches and a faster suite.
+//  Trivial single-assertion smoke tests that exercised the same initial screen
+//  state have been folded into `testInitialSettingsScreenState()`, with each
+//  condition wrapped in its own `XCTContext.runActivity` so a failure still
+//  points at exactly which check broke. `testPlayerManagementFlow()`,
+//  `testConfigurationFlow()`, and `testSessionHistoryFlow()` group the rest of
+//  the file's coverage by the app state they exercise. The two integration
+//  tests (`testCompletePlayerManagementFlow`, `testSettingsToTimerIntegration`)
+//  are kept as their own methods per the ticket.
+//
+//  All `sleep`/`usleep` synchronization has been replaced with
+//  `waitForExistence(timeout:)` or predicate-based waits on the actual
+//  condition being awaited (see `waitForNonExistence` below).
+//
 
 import XCTest
 
 final class SettingsViewUITests: XCTestCase {
+    /// Matches `SettingsPlayerRowView`'s `.accessibilityIdentifier`. Kept as
+    /// one constant so the row query and the swipe-target query below can't
+    /// drift apart.
+    private static let playerRowIdentifier = "settings.player.row"
+
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -26,7 +47,6 @@ final class SettingsViewUITests: XCTestCase {
         app.launchArguments = ["--uitesting"]
         app.launch()
 
-        // Navigate to Settings tab
         let settingsTab = app.tabBars.buttons["Settings"]
         if settingsTab.exists {
             settingsTab.tap()
@@ -37,685 +57,366 @@ final class SettingsViewUITests: XCTestCase {
         app = nil
     }
 
-    // MARK: - Basic Navigation Tests
+    // MARK: - Synchronization Helpers
 
-    @MainActor
-    func testSettingsViewLoads() {
-        // Verify Settings view is visible
-        let settingsTitle = app.navigationBars["Settings"]
-        XCTAssertTrue(
-            settingsTitle.waitForExistence(timeout: 2),
-            "Settings view should load"
-        )
+    /// Waits for `element` to stop existing (e.g. a sheet dismissing), instead
+    /// of sleeping for a fixed duration.
+    @discardableResult
+    private func waitForNonExistence(of element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    @MainActor
-    func testSettingsSectionsExist() {
-        // Check for main sections
-        let playersSection = app.staticTexts["Players"]
-        let configSection = app.staticTexts["Configuration"]
-
-        XCTAssertTrue(playersSection.exists, "Players section should exist")
-        XCTAssertTrue(configSection.exists, "Configuration section should exist")
+    /// Waits for `element`'s label to differ from `initialLabel`.
+    @discardableResult
+    private func waitForLabelChange(
+        of element: XCUIElement, from initialLabel: String, timeout: TimeInterval = 3
+    ) -> Bool {
+        let predicate = NSPredicate(format: "label != %@", initialLabel)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    @MainActor
-    func testNavigationBetweenTabs() {
-        // Switch to Timer tab
-        let timerTab = app.tabBars.buttons["Timer"]
-        XCTAssertTrue(timerTab.exists, "Timer tab should exist")
-        timerTab.tap()
-
-        // Verify we're on Timer
-        let activeSection = app.staticTexts["Active Players"]
-        XCTAssertTrue(
-            activeSection.waitForExistence(timeout: 2),
-            "Should navigate to Timer view"
-        )
-
-        // Return to Settings
-        let settingsTab = app.tabBars.buttons["Settings"]
-        settingsTab.tap()
-
-        // Verify we're back
-        let settingsTitle = app.navigationBars["Settings"]
-        XCTAssertTrue(
-            settingsTitle.waitForExistence(timeout: 2),
-            "Should return to Settings view"
-        )
+    /// Waits for `element`'s accessibility value to differ from
+    /// `initialValue`. Stepper's accessibility value updates on tap, but its
+    /// label (the fixed "Active Players" title) does not, so this is used
+    /// instead of `waitForLabelChange` for stepper changes. Polls directly
+    /// rather than through `XCTNSPredicateExpectation`, since `value` is
+    /// `Any?` and doesn't bridge reliably through NSPredicate/KVC.
+    @discardableResult
+    private func waitForValueChange(
+        of element: XCUIElement, from initialValue: String?, timeout: TimeInterval = 3
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline, (element.value as? String) == initialValue {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return (element.value as? String) != initialValue
     }
 
-    // MARK: - Player Management Tests
+    /// Waits for the player roster's edit-button count to drop below
+    /// `count`, instead of sleeping after a delete action.
+    private func waitForRowCountBelow(_ count: Int, timeout: TimeInterval = 3) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if playerRowEditButtons().count < count { return true }
+        }
+        return playerRowEditButtons().count < count
+    }
 
-    @MainActor
-    func testAddPlayerButtonExists() {
-        // Find Add Player button (+ or "Add Player")
-        let addButton = app.buttons.matching(
+    /// Every `SettingsPlayerRowView` carries `settings.player.row` as its
+    /// accessibility identifier; SwiftUI applies it to the row's children
+    /// (the name/status text and the edit button) rather than to a single
+    /// merged cell, so scoping the query to `app.buttons` reliably yields one
+    /// match per player row - each row's edit button, labeled "Edit <name>".
+    private func playerRowEditButtons() -> XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "identifier == '\(Self.playerRowIdentifier)'"))
+    }
+
+    /// Row swipe-to-delete needs a large enough touch target to register as
+    /// a drag rather than a tap; the edit button is a ~14pt icon, too small
+    /// for a reliable `swipeLeft()`. This targets one of the row's text
+    /// elements instead (also carrying `settings.player.row`), which is wide
+    /// enough for the gesture to register; either the name or status text
+    /// works equally well since both sit within the same row's bounds.
+    private func lastPlayerRowSwipeTarget() -> XCUIElement {
+        let texts = app.staticTexts.matching(NSPredicate(format: "identifier == '\(Self.playerRowIdentifier)'"))
+        return texts.element(boundBy: texts.count - 1)
+    }
+
+    private func addPlayerButton() -> XCUIElement {
+        app.buttons.matching(
             NSPredicate(format: "label CONTAINS[c] 'add' OR label == '+'")
         ).firstMatch
-
-        XCTAssertTrue(
-            addButton.waitForExistence(timeout: 2),
-            "Add player button should exist"
-        )
     }
 
+    private func preferredTimeButton() -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Preferred Play Time'")).firstMatch
+    }
+
+    // MARK: - Initial Settings Screen State
+
+    /// Consolidates every read-only smoke check against the Settings screen's
+    /// initial render: navigation title, section headers, player rows,
+    /// configuration controls, session history link, accessibility, and
+    /// navigation away/back to Timer. Each condition is its own activity so a
+    /// failure identifies precisely which one broke.
     @MainActor
-    func testAddPlayerSheetOpens() {
-        let addButton = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'add' OR label == '+'")
-        ).firstMatch
-
-        if addButton.exists {
-            addButton.tap()
-
-            // Sheet should appear
-            let sheetTitle = app.staticTexts.matching(
-                NSPredicate(format: "label CONTAINS[c] 'add player' OR label CONTAINS[c] 'new player'")
-            ).firstMatch
-
+    func testInitialSettingsScreenState() {
+        XCTContext.runActivity(named: "Settings view loads with its sections") { _ in
             XCTAssertTrue(
-                sheetTitle.waitForExistence(timeout: 2),
-                "Add player sheet should appear"
+                app.navigationBars["Settings"].waitForExistence(timeout: 2), "Settings view should load"
             )
-
-            // Close sheet
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
-            }
-        }
-    }
-
-    @MainActor
-    func testAddPlayerFlow() {
-        let addButton = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'add' OR label == '+'")
-        ).firstMatch
-
-        if addButton.exists {
-            addButton.tap()
-            sleep(1)
-
-            // Find text field
-            let nameField = app.textFields.firstMatch
-            if nameField.exists {
-                nameField.tap()
-                nameField.typeText("Test Player")
-
-                // Find Add/Save button
-                let saveButton = app.buttons.matching(
-                    NSPredicate(format: "label CONTAINS[c] 'add' OR label CONTAINS[c] 'save'")
-                ).firstMatch
-
-                if saveButton.exists, saveButton.isEnabled {
-                    saveButton.tap()
-                    sleep(1)
-
-                    // Sheet should dismiss
-                    let sheetTitle = app.staticTexts.matching(
-                        NSPredicate(format: "label CONTAINS[c] 'add player'")
-                    ).firstMatch
-                    XCTAssertFalse(sheetTitle.exists, "Sheet should dismiss after adding player")
-                } else {
-                    // Cancel if we can't save
-                    let cancelButton = app.buttons["Cancel"]
-                    if cancelButton.exists {
-                        cancelButton.tap()
-                    }
-                }
-            }
-        }
-    }
-
-    @MainActor
-    func testAddPlayerValidation() {
-        let addButton = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'add' OR label == '+'")
-        ).firstMatch
-
-        if addButton.exists {
-            addButton.tap()
-            sleep(1)
-
-            // Find Add/Save button
-            let saveButton = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'add' OR label CONTAINS[c] 'save'")
-            ).firstMatch
-
-            if saveButton.exists {
-                // Without entering a name, button should be disabled
-                // or tapping should show validation error
-                let isEnabled = saveButton.isEnabled
-
-                if isEnabled {
-                    // If enabled, tapping with empty name might show error
-                    saveButton.tap()
-                    sleep(1)
-                    // Could check for error message here
-                } else {
-                    // Button is disabled for empty name (good!)
-                    XCTAssertFalse(isEnabled, "Save button should be disabled with empty name")
-                }
-            }
-
-            // Close sheet
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
-            }
-        }
-    }
-
-    @MainActor
-    func testEditPlayerFlow() {
-        // Find first player row
-        let playerRows = app.cells.matching(identifier: "settings.player.row")
-
-        if playerRows.count > 0 {
-            let firstRow = playerRows.element(boundBy: 0)
-            firstRow.tap()
-            sleep(1)
-
-            // Edit sheet should appear
-            let editTitle = app.staticTexts.matching(
-                NSPredicate(format: "label CONTAINS[c] 'edit' OR label CONTAINS[c] 'player'")
-            ).firstMatch
-
-            if editTitle.exists {
-                // Find text field
-                let nameField = app.textFields.firstMatch
-                if nameField.exists {
-                    nameField.tap()
-                    // Clear and type new name
-                    nameField.typeText(" Edited")
-
-                    // Save
-                    let saveButton = app.buttons.matching(
-                        NSPredicate(format: "label CONTAINS[c] 'save' OR label CONTAINS[c] 'done'")
-                    ).firstMatch
-
-                    if saveButton.exists, saveButton.isEnabled {
-                        saveButton.tap()
-                        sleep(1)
-                    }
-                }
-
-                // Close sheet if still open
-                let cancelButton = app.buttons["Cancel"]
-                if cancelButton.exists {
-                    cancelButton.tap()
-                }
-            }
-        }
-    }
-
-    @MainActor
-    func testDeletePlayer() {
-        // Find player rows
-        let playerRows = app.cells.matching(identifier: "settings.player.row")
-        let initialCount = playerRows.count
-
-        if initialCount > 0 {
-            let lastRow = playerRows.element(boundBy: initialCount - 1)
-
-            // Swipe to delete
-            lastRow.swipeLeft()
-            sleep(1)
-
-            // Find Delete button
-            let deleteButton = app.buttons["Delete"]
-            if deleteButton.exists {
-                deleteButton.tap()
-                sleep(1)
-
-                // Player count should decrease
-                let newCount = app.cells.matching(identifier: "settings.player.row").count
-                XCTAssertLessThanOrEqual(
-                    newCount, initialCount,
-                    "Player count should not increase after delete"
-                )
-            }
-        }
-    }
-
-    @MainActor
-    func testReorderPlayers() {
-        // Find player rows
-        let playerRows = app.cells.matching(identifier: "settings.player.row")
-
-        if playerRows.count >= 2 {
-            // This is a basic test that edit mode exists
-            // Actual drag-and-drop is complex in UI tests
-
-            // Look for Edit button (if present)
-            let editButton = app.buttons["Edit"]
-            if editButton.exists {
-                editButton.tap()
-                sleep(1)
-
-                // Verify reorder controls appear
-                let reorderControls = app.buttons.matching(
-                    NSPredicate(format: "label CONTAINS[c] 'reorder'")
-                )
-
-                // Should have reorder controls or ability to drag
-                // This is a smoke test
-                XCTAssertTrue(true, "Edit mode should be accessible")
-
-                // Exit edit mode
-                let doneButton = app.buttons["Done"]
-                if doneButton.exists {
-                    doneButton.tap()
-                }
-            }
-        }
-    }
-
-    // MARK: - Configuration Tests
-
-    @MainActor
-    func testActivePlayersStepperExists() {
-        // Find stepper for active players count
-        let stepper = app.steppers.firstMatch
-
-        XCTAssertTrue(
-            stepper.waitForExistence(timeout: 2),
-            "Active players stepper should exist"
-        )
-    }
-
-    @MainActor
-    func testActivePlayersStepperIncrement() {
-        let stepper = app.steppers.firstMatch
-
-        if stepper.exists {
-            // Find current value display
-            let valueTexts = app.staticTexts.matching(
-                NSPredicate(format: "label MATCHES %@", "\\d+")
-            )
-
-            // Tap increment
-            let incrementButton = stepper.buttons["Increment"]
-            if incrementButton.exists {
-                incrementButton.tap()
-                sleep(1)
-
-                // Value should change (this is a basic smoke test)
-                XCTAssertTrue(stepper.exists, "Stepper should still exist after increment")
-            }
-        }
-    }
-
-    @MainActor
-    func testActivePlayersStepperDecrement() {
-        let stepper = app.steppers.firstMatch
-
-        if stepper.exists {
-            // Tap decrement
-            let decrementButton = stepper.buttons["Decrement"]
-            if decrementButton.exists {
-                decrementButton.tap()
-                sleep(1)
-
-                // Verify stepper still works
-                XCTAssertTrue(stepper.exists, "Stepper should still exist after decrement")
-            }
-        }
-    }
-
-    @MainActor
-    func testPreferredTimePickerExists() {
-        // Find picker for preferred play time
-        let picker = app.pickers.firstMatch
-
-        XCTAssertTrue(
-            picker.waitForExistence(timeout: 2),
-            "Preferred time picker should exist"
-        )
-    }
-
-    @MainActor
-    func testPreferredTimePickerInteraction() {
-        let picker = app.pickers.firstMatch
-
-        if picker.exists {
-            picker.tap()
-            sleep(1)
-
-            // Should be able to interact with picker
-            // (Detailed picker testing is complex in UI tests)
-            XCTAssertTrue(picker.exists, "Picker should remain after interaction")
-        }
-    }
-
-    @MainActor
-    func testConfigurationSectionLayout() {
-        // Verify configuration section has expected elements
-        let configSection = app.staticTexts["Configuration"]
-        XCTAssertTrue(configSection.exists, "Configuration section should exist")
-
-        // Should have labels for settings
-        let activePlayersLabel = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS[c] 'active players'")
-        ).firstMatch
-
-        let preferredTimeLabel = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS[c] 'preferred' OR label CONTAINS[c] 'time'")
-        ).firstMatch
-
-        // At least one should exist
-        XCTAssertTrue(
-            activePlayersLabel.exists || preferredTimeLabel.exists,
-            "Configuration controls should have labels"
-        )
-    }
-
-    // MARK: - Session History Tests
-
-    @MainActor
-    func testSessionHistorySectionExists() {
-        // Scroll to find session history (may be below fold)
-        app.swipeUp()
-        sleep(1)
-
-        let sessionSection = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS[c] 'session' OR label CONTAINS[c] 'history'")
-        ).firstMatch
-
-        // Session section may or may not exist depending on data
-        // This is a smoke test
-        _ = sessionSection.exists
-    }
-
-    @MainActor
-    func testSessionRowsDisplay() {
-        // Scroll to session history
-        app.swipeUp()
-        sleep(1)
-
-        let sessionRows = app.cells.matching(identifier: "session.row")
-
-        // Sessions may or may not exist
-        // Just verify it doesn't crash
-        _ = sessionRows.count
-    }
-
-    @MainActor
-    func testDeleteSession() {
-        // Scroll to session history
-        app.swipeUp()
-        sleep(1)
-
-        let sessionRows = app.cells.matching(identifier: "session.row")
-
-        if sessionRows.count > 0 {
-            let firstSession = sessionRows.element(boundBy: 0)
-
-            // Swipe to delete
-            firstSession.swipeLeft()
-            sleep(1)
-
-            // Find Delete button
-            let deleteButton = app.buttons["Delete"]
-            if deleteButton.exists {
-                deleteButton.tap()
-                sleep(1)
-
-                // Should handle deletion gracefully
-                XCTAssertTrue(true, "Session deletion should complete without crash")
-            }
-        }
-    }
-
-    @MainActor
-    func testClearAllSessions() {
-        // Scroll to session history
-        app.swipeUp()
-        sleep(1)
-
-        let clearButton = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'clear all' OR label CONTAINS[c] 'delete all'")
-        ).firstMatch
-
-        if clearButton.exists {
-            clearButton.tap()
-            sleep(1)
-
-            // Should show confirmation alert
-            let alert = app.alerts.firstMatch
-            if alert.exists {
-                // Cancel the action
-                let cancelButton = alert.buttons["Cancel"]
-                if cancelButton.exists {
-                    cancelButton.tap()
-                } else {
-                    // Or dismiss alert
-                    let dismissButton = alert.buttons.element(boundBy: 0)
-                    dismissButton.tap()
-                }
-            }
-        }
-    }
-
-    // MARK: - Form Validation Tests
-
-    @MainActor
-    func testEmptyPlayerNameValidation() {
-        let addButton = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'add' OR label == '+'")
-        ).firstMatch
-
-        if addButton.exists {
-            addButton.tap()
-            sleep(1)
-
-            // Find text field
-            let nameField = app.textFields.firstMatch
-            if nameField.exists {
-                nameField.tap()
-
-                // Type then delete text
-                nameField.typeText("A")
-                // Delete key simulation is tricky in UI tests
-                // Just verify field exists
-
-                // Try to save
-                let saveButton = app.buttons.matching(
-                    NSPredicate(format: "label CONTAINS[c] 'add' OR label CONTAINS[c] 'save'")
-                ).firstMatch
-
-                if saveButton.exists {
-                    // Button should be disabled or show error on tap
-                    _ = saveButton.isEnabled
-                }
-            }
-
-            // Close sheet
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
-            }
-        }
-    }
-
-    @MainActor
-    func testDuplicatePlayerNameValidation() {
-        // Get existing player name
-        let playerRows = app.cells.matching(identifier: "settings.player.row")
-
-        if playerRows.count > 0 {
-            let firstRow = playerRows.element(boundBy: 0)
-            let existingName = firstRow.staticTexts.element(boundBy: 0).label
-
-            // Try to add player with same name
-            let addButton = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'add' OR label == '+'")
-            ).firstMatch
-
-            if addButton.exists {
-                addButton.tap()
-                sleep(1)
-
-                let nameField = app.textFields.firstMatch
-                if nameField.exists {
-                    nameField.tap()
-                    nameField.typeText(existingName)
-
-                    // Try to save
-                    let saveButton = app.buttons.matching(
-                        NSPredicate(format: "label CONTAINS[c] 'add'")
-                    ).firstMatch
-
-                    if saveButton.exists, saveButton.isEnabled {
-                        saveButton.tap()
-                        sleep(1)
-
-                        // Should show error or prevent save
-                        // This is implementation-dependent
-                    }
-                }
-
-                // Close sheet
-                let cancelButton = app.buttons["Cancel"]
-                if cancelButton.exists {
-                    cancelButton.tap()
-                }
-            }
-        }
-    }
-
-    // MARK: - Accessibility Tests
-
-    @MainActor
-    func testAccessibilityLabels() {
-        // Verify key elements have accessibility labels
-        let addButton = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'add'")
-        ).firstMatch
-
-        if addButton.exists {
-            XCTAssertFalse(addButton.label.isEmpty, "Add button should have accessibility label")
+            XCTAssertTrue(app.staticTexts["Players"].exists, "Players section should exist")
+            XCTAssertTrue(app.staticTexts["Configuration"].exists, "Configuration section should exist")
         }
 
-        let stepper = app.steppers.firstMatch
-        if stepper.exists {
+        XCTContext.runActivity(named: "Player rows render with a usable, accessible edit action") { _ in
+            let editButtons = playerRowEditButtons()
+            XCTAssertGreaterThan(editButtons.count, 0, "At least one player row should render")
+            let firstEditButton = editButtons.element(boundBy: 0)
+            XCTAssertFalse(firstEditButton.label.isEmpty, "Edit button should have an accessibility label")
+        }
+
+        XCTContext.runActivity(named: "Add Player button exists and is accessible") { _ in
+            let addButton = addPlayerButton()
+            XCTAssertTrue(addButton.waitForExistence(timeout: 2), "Add player button should exist")
+            XCTAssertFalse(addButton.label.isEmpty, "Add player button should have accessibility label")
+        }
+
+        XCTContext.runActivity(named: "Active Players stepper exists with an accessibility value") { _ in
+            let stepper = app.steppers.firstMatch
+            XCTAssertTrue(stepper.waitForExistence(timeout: 2), "Active players stepper should exist")
             XCTAssertNotNil(stepper.value, "Stepper should have accessibility value")
         }
 
-        let picker = app.pickers.firstMatch
-        if picker.exists {
-            XCTAssertNotNil(picker.value, "Picker should have accessibility value")
+        XCTContext.runActivity(named: "Preferred Play Time control exists with an accessibility value") { _ in
+            let control = preferredTimeButton()
+            XCTAssertTrue(control.waitForExistence(timeout: 2), "Preferred time control should exist")
+            XCTAssertFalse(control.label.isEmpty, "Preferred time control should have an accessibility label")
+        }
+
+        XCTContext.runActivity(named: "Session History link exists and is accessible") { _ in
+            let sessionHistoryLink = app.buttons["Session History"]
+            XCTAssertTrue(sessionHistoryLink.exists, "Session History link should exist")
+        }
+
+        XCTContext.runActivity(named: "Navigating to Timer and back to Settings") { _ in
+            let timerTab = app.tabBars.buttons["Timer"]
+            XCTAssertTrue(timerTab.exists, "Timer tab should exist")
+            timerTab.tap()
+
+            let activeSection = app.staticTexts["Active Players"]
+            XCTAssertTrue(activeSection.waitForExistence(timeout: 2), "Should navigate to Timer view")
+
+            let settingsTab = app.tabBars.buttons["Settings"]
+            settingsTab.tap()
+            XCTAssertTrue(
+                app.navigationBars["Settings"].waitForExistence(timeout: 2), "Should return to Settings view"
+            )
         }
     }
 
-    @MainActor
-    func testVoiceOverSupport() {
-        // Test that interactive elements are accessible
-        let playerRows = app.cells.matching(identifier: "settings.player.row")
+    // MARK: - Player Management Flow
 
-        if playerRows.count > 0 {
-            let firstRow = playerRows.element(boundBy: 0)
-            XCTAssertTrue(firstRow.exists, "Player rows should be accessible")
+    /// Combines add (with empty-name validation), edit, duplicate-name
+    /// handling, and delete into a single pass over the seeded roster.
+    /// Drag-to-reorder is not covered: the original tests only smoke-tested
+    /// for an `Edit` toolbar button, but `SettingsView` never adds one -
+    /// there is no accessible control that enters list edit mode, so there
+    /// was never any real coverage to preserve here.
+    @MainActor
+    func testPlayerManagementFlow() {
+        let initialRowCount = playerRowEditButtons().count
+
+        XCTContext.runActivity(named: "Add button is disabled until a name is entered") { _ in
+            addPlayerButton().tap()
+            XCTAssertTrue(
+                app.navigationBars["Add Player"].waitForExistence(timeout: 2), "Add player sheet should appear"
+            )
+
+            let addConfirmButton = app.buttons["Add"]
+            XCTAssertFalse(addConfirmButton.isEnabled, "Add should be disabled with an empty name")
+
+            let nameField = app.textFields.firstMatch
+            XCTAssertTrue(nameField.exists, "Name field should exist")
+            nameField.tap()
+            nameField.typeText("Integration Test Player")
+            XCTAssertTrue(addConfirmButton.isEnabled, "Add should be enabled once a name is entered")
+
+            addConfirmButton.tap()
+            XCTAssertTrue(
+                waitForNonExistence(of: app.navigationBars["Add Player"]), "Sheet should dismiss after adding"
+            )
+            XCTAssertEqual(
+                playerRowEditButtons().count, initialRowCount + 1, "Roster should gain exactly one player"
+            )
+        }
+
+        XCTContext.runActivity(named: "Adding a player with a duplicate name is accepted") { _ in
+            // The app has no duplicate-name validation (`addPlayer()` only
+            // rejects empty/whitespace names), so this documents actual
+            // behavior rather than an assumed rejection.
+            let countBeforeDuplicate = playerRowEditButtons().count
+            addPlayerButton().tap()
+            let nameField = app.textFields.firstMatch
+            nameField.tap()
+            nameField.typeText("Integration Test Player")
+
+            let addConfirmButton = app.buttons["Add"]
+            addConfirmButton.tap()
+            XCTAssertTrue(waitForNonExistence(of: app.navigationBars["Add Player"]), "Sheet should dismiss")
+            XCTAssertEqual(
+                playerRowEditButtons().count, countBeforeDuplicate + 1,
+                "Duplicate name should still be added"
+            )
+        }
+
+        XCTContext.runActivity(named: "Editing a player's name updates the roster") { _ in
+            let editButtons = playerRowEditButtons()
+            let lastEditButton = editButtons.element(boundBy: editButtons.count - 1)
+            lastEditButton.tap()
+
+            XCTAssertTrue(
+                app.navigationBars["Edit Player"].waitForExistence(timeout: 2), "Edit player sheet should appear"
+            )
+
+            let nameField = app.textFields.firstMatch
+            nameField.tap()
+            nameField.typeText(" Edited")
+
+            let saveButton = app.buttons["Save"]
+            XCTAssertTrue(saveButton.isEnabled, "Save should be enabled for a non-empty name")
+            saveButton.tap()
+
+            XCTAssertTrue(
+                waitForNonExistence(of: app.navigationBars["Edit Player"]), "Sheet should dismiss after saving"
+            )
+            XCTAssertTrue(
+                app.staticTexts["Integration Test Player Edited"].waitForExistence(timeout: 2),
+                "Edited name should appear in the roster"
+            )
+        }
+
+        XCTContext.runActivity(named: "Deleting a player removes it from the roster") { _ in
+            let countBeforeDelete = playerRowEditButtons().count
+            lastPlayerRowSwipeTarget().swipeLeft()
+
+            let deleteButton = app.buttons["Delete"]
+            XCTAssertTrue(deleteButton.waitForExistence(timeout: 2), "Delete action should appear on swipe")
+            deleteButton.tap()
+
+            XCTAssertTrue(
+                waitForRowCountBelow(countBeforeDelete), "Roster should shrink by one after delete"
+            )
         }
     }
 
-    // MARK: - Persistence Tests
+    // MARK: - Configuration Flow
 
+    /// Combines the stepper (including the persistence-across-tabs check
+    /// that was this file's one catalogued failure) and the preferred time
+    /// picker into a single pass, plus boundary behavior at both ends of the
+    /// stepper's range.
     @MainActor
-    func testConfigurationPersistence() {
-        // Change active players count
+    func testConfigurationFlow() {
         let stepper = app.steppers.firstMatch
+        XCTAssertTrue(stepper.waitForExistence(timeout: 2), "Stepper should exist")
+        // This test doesn't add/remove players, so the roster size observed
+        // now is the stepper's maximum for its whole duration.
+        let maxPlayers = playerRowEditButtons().count
 
-        if stepper.exists {
+        XCTContext.runActivity(named: "Changing Active Players persists across a tab switch") { _ in
             let incrementButton = stepper.buttons["Increment"]
-            if incrementButton.exists {
-                // Get current value
-                let initialValue = stepper.value as? String
-
-                incrementButton.tap()
-                sleep(1)
-
-                // Switch tabs
-                let timerTab = app.tabBars.buttons["Timer"]
-                timerTab.tap()
-                sleep(1)
-
-                // Return to settings
-                let settingsTab = app.tabBars.buttons["Settings"]
-                settingsTab.tap()
-                sleep(1)
-
-                // Value should persist
-                let currentValue = app.steppers.firstMatch.value as? String
-                XCTAssertNotEqual(
-                    initialValue, currentValue,
-                    "Configuration changes should persist across tab switches"
-                )
-            }
-        }
-    }
-
-    // MARK: - Edge Cases Tests
-
-    @MainActor
-    func testMinimumActivePlayersConstraint() {
-        let stepper = app.steppers.firstMatch
-
-        if stepper.exists {
             let decrementButton = stepper.buttons["Decrement"]
+            let initialValue = stepper.value as? String
 
-            // Try to decrement below minimum
-            for _ in 1 ... 10 {
-                if decrementButton.isEnabled {
-                    decrementButton.tap()
-                    usleep(200_000) // 0.2 seconds
-                } else {
-                    break
-                }
+            // SwiftUI's Stepper doesn't disable Increment/Decrement at its
+            // range bounds - both report `isEnabled == true` even when
+            // tapping them is a no-op - so `isEnabled` can't tell us which
+            // direction actually moves the value. The seeded fixture starts
+            // at the stepper's maximum, so try Increment first and fall back
+            // to Decrement if the value didn't actually move.
+            incrementButton.tap()
+            if !waitForValueChange(of: stepper, from: initialValue, timeout: 1) {
+                decrementButton.tap()
             }
+            XCTAssertTrue(
+                waitForValueChange(of: stepper, from: initialValue), "Stepper value should change after tap"
+            )
 
-            // Should not crash and should enforce minimum
-            XCTAssertTrue(stepper.exists, "Stepper should handle minimum constraint")
+            let timerTab = app.tabBars.buttons["Timer"]
+            timerTab.tap()
+            XCTAssertTrue(
+                app.staticTexts["Active Players"].waitForExistence(timeout: 2), "Should navigate to Timer view"
+            )
+
+            let settingsTab = app.tabBars.buttons["Settings"]
+            settingsTab.tap()
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 2), "Should return to Settings")
+
+            XCTAssertNotEqual(
+                initialValue, app.steppers.firstMatch.value as? String,
+                "Configuration changes should persist across tab switches"
+            )
         }
-    }
 
-    @MainActor
-    func testMaximumActivePlayersConstraint() {
-        let stepper = app.steppers.firstMatch
+        XCTContext.runActivity(named: "Decrementing repeatedly settles at the minimum of 1") { _ in
+            let decrementButton = stepper.buttons["Decrement"]
+            for _ in 0 ..< (maxPlayers + 2) {
+                decrementButton.tap()
+            }
+            XCTAssertEqual(stepper.value as? String, "1", "Stepper should settle at its minimum of 1")
+        }
 
-        if stepper.exists {
+        XCTContext.runActivity(named: "Incrementing repeatedly settles at the roster-size maximum") { _ in
             let incrementButton = stepper.buttons["Increment"]
-
-            // Try to increment beyond maximum
-            for _ in 1 ... 20 {
-                if incrementButton.isEnabled {
-                    incrementButton.tap()
-                    usleep(200_000) // 0.2 seconds
-                } else {
-                    break
-                }
+            for _ in 0 ..< (maxPlayers + 2) {
+                incrementButton.tap()
             }
+            XCTAssertEqual(
+                stepper.value as? String, "\(maxPlayers)", "Stepper should settle at its maximum of \(maxPlayers)"
+            )
+        }
 
-            // Should not crash and should enforce maximum
-            XCTAssertTrue(stepper.exists, "Stepper should handle maximum constraint")
+        XCTContext.runActivity(named: "Preferred Play Time can be changed via its option menu") { _ in
+            let control = preferredTimeButton()
+            let initialLabel = control.label
+            control.tap()
+
+            let option = app.buttons["1:00"]
+            XCTAssertTrue(option.waitForExistence(timeout: 2), "Time option menu should appear")
+            option.tap()
+
+            XCTAssertTrue(
+                waitForLabelChange(of: preferredTimeButton(), from: initialLabel),
+                "Preferred time control should reflect the new selection"
+            )
+            XCTAssertEqual(
+                preferredTimeButton().label, "Preferred Play Time, 1:00",
+                "Preferred time should update to the selected option"
+            )
         }
     }
 
+    // MARK: - Session History Flow
+
+    /// Covers navigating into session history (seeded fixture data has no
+    /// sessions, so this is the empty state) and the two real destructive
+    /// actions in `SettingsView` - "Clear Current Session" and "Reset All
+    /// Player Times" - each cancelled via their confirmation alert. The
+    /// original file's `testClearAllSessions` looked for a "clear all"/
+    /// "delete all" button that never existed in the app; these are the
+    /// actual actions available.
     @MainActor
-    func testNoPlayersState() {
-        // This test assumes you might delete all players
-        // In practice, app might prevent this
-        let playerRows = app.cells.matching(identifier: "settings.player.row")
+    func testSessionHistoryFlow() {
+        XCTContext.runActivity(named: "Session History shows the empty state and returns to Settings") { _ in
+            app.buttons["Session History"].tap()
+            XCTAssertTrue(
+                app.navigationBars["Session History"].waitForExistence(timeout: 2),
+                "Should navigate to Session History"
+            )
+            XCTAssertTrue(app.staticTexts["No Sessions"].exists, "Empty state should render with no sessions")
 
-        if playerRows.count == 0 {
-            // Should show empty state
-            let emptyMessage = app.staticTexts.matching(
-                NSPredicate(format: "label CONTAINS[c] 'no players' OR label CONTAINS[c] 'add player'")
-            ).firstMatch
+            app.navigationBars["Session History"].buttons["Settings"].tap()
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 2), "Should return to Settings")
+        }
 
-            // Empty state handling is implementation-dependent
-            _ = emptyMessage.exists
+        XCTContext.runActivity(named: "Clear Current Session can be cancelled") { _ in
+            app.buttons["Clear Current Session"].tap()
+            let alert = app.alerts["Clear Current Session"]
+            XCTAssertTrue(alert.waitForExistence(timeout: 2), "Confirmation alert should appear")
+            alert.buttons["Cancel"].tap()
+            XCTAssertTrue(waitForNonExistence(of: alert), "Alert should dismiss on cancel")
+        }
+
+        XCTContext.runActivity(named: "Reset All Player Times can be cancelled") { _ in
+            app.buttons["Reset All Player Times"].tap()
+            let alert = app.alerts["Reset All Player Times"]
+            XCTAssertTrue(alert.waitForExistence(timeout: 2), "Confirmation alert should appear")
+            alert.buttons["Cancel"].tap()
+            XCTAssertTrue(waitForNonExistence(of: alert), "Alert should dismiss on cancel")
         }
     }
 
@@ -723,118 +424,63 @@ final class SettingsViewUITests: XCTestCase {
 
     @MainActor
     func testCompletePlayerManagementFlow() {
-        // Add a player
-        let addButton = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'add' OR label == '+'")
-        ).firstMatch
+        let initialRowCount = playerRowEditButtons().count
 
-        if addButton.exists {
-            addButton.tap()
-            sleep(1)
+        addPlayerButton().tap()
+        let nameField = app.textFields.firstMatch
+        XCTAssertTrue(nameField.waitForExistence(timeout: 2), "Name field should appear")
+        nameField.tap()
+        nameField.typeText("Integration Test Player")
 
-            let nameField = app.textFields.firstMatch
-            if nameField.exists {
-                nameField.tap()
-                nameField.typeText("Integration Test Player")
+        let addConfirmButton = app.buttons["Add"]
+        XCTAssertTrue(addConfirmButton.isEnabled, "Add should be enabled once a name is entered")
+        addConfirmButton.tap()
+        XCTAssertTrue(waitForNonExistence(of: app.navigationBars["Add Player"]), "Sheet should dismiss")
 
-                let saveButton = app.buttons.matching(
-                    NSPredicate(format: "label CONTAINS[c] 'add'")
-                ).firstMatch
+        let editButtons = playerRowEditButtons()
+        XCTAssertEqual(editButtons.count, initialRowCount + 1, "Should gain exactly one player")
 
-                if saveButton.exists, saveButton.isEnabled {
-                    saveButton.tap()
-                    sleep(1)
-                } else {
-                    let cancelButton = app.buttons["Cancel"]
-                    if cancelButton.exists {
-                        cancelButton.tap()
-                    }
-                }
-            }
-        }
-
-        // Verify player appears
-        let playerRows = app.cells.matching(identifier: "settings.player.row")
-        XCTAssertGreaterThan(playerRows.count, 0, "Should have at least one player")
-
-        // Edit the player
-        if playerRows.count > 0 {
-            let lastRow = playerRows.element(boundBy: playerRows.count - 1)
-            lastRow.tap()
-            sleep(1)
-
-            let nameField = app.textFields.firstMatch
-            if nameField.exists {
-                nameField.tap()
-                nameField.typeText(" Modified")
-
-                let saveButton = app.buttons.matching(
-                    NSPredicate(format: "label CONTAINS[c] 'save' OR label CONTAINS[c] 'done'")
-                ).firstMatch
-
-                if saveButton.exists, saveButton.isEnabled {
-                    saveButton.tap()
-                    sleep(1)
-                } else {
-                    let cancelButton = app.buttons["Cancel"]
-                    if cancelButton.exists {
-                        cancelButton.tap()
-                    }
-                }
-            }
-        }
-
-        // Configuration change
-        let stepper = app.steppers.firstMatch
-        if stepper.exists {
-            let incrementButton = stepper.buttons["Increment"]
-            if incrementButton.exists {
-                incrementButton.tap()
-                sleep(1)
-            }
-        }
-
-        // Verify settings persisted
+        editButtons.element(boundBy: editButtons.count - 1).tap()
         XCTAssertTrue(
-            app.navigationBars["Settings"].exists,
-            "Should remain on Settings view after complete flow"
+            app.navigationBars["Edit Player"].waitForExistence(timeout: 2), "Edit player sheet should appear"
+        )
+        let editNameField = app.textFields.firstMatch
+        editNameField.tap()
+        editNameField.typeText(" Modified")
+
+        let saveButton = app.buttons["Save"]
+        XCTAssertTrue(saveButton.isEnabled, "Save should be enabled for a non-empty name")
+        saveButton.tap()
+        XCTAssertTrue(waitForNonExistence(of: app.navigationBars["Edit Player"]), "Sheet should dismiss")
+
+        // Decrement is safe here regardless of the roster's current size:
+        // the fixture always seeds well above the minimum of 1.
+        app.steppers.firstMatch.buttons["Decrement"].tap()
+
+        XCTAssertTrue(
+            app.navigationBars["Settings"].exists, "Should remain on Settings view after complete flow"
+        )
+        XCTAssertTrue(
+            app.staticTexts["Integration Test Player Modified"].waitForExistence(timeout: 2),
+            "Edited player name should be visible in the roster"
         )
     }
 
     @MainActor
     func testSettingsToTimerIntegration() {
-        // Modify configuration
-        let stepper = app.steppers.firstMatch
+        // Decrement is safe here regardless of the roster's current size:
+        // the fixture always seeds well above the minimum of 1.
+        app.steppers.firstMatch.buttons["Decrement"].tap()
 
-        if stepper.exists {
-            let incrementButton = stepper.buttons["Increment"]
-            if incrementButton.exists {
-                incrementButton.tap()
-                sleep(1)
-            }
-        }
-
-        // Switch to timer
         let timerTab = app.tabBars.buttons["Timer"]
         timerTab.tap()
-        sleep(1)
-
-        // Timer should reflect new configuration
-        let activeSection = app.staticTexts["Active Players"]
         XCTAssertTrue(
-            activeSection.exists,
+            app.staticTexts["Active Players"].waitForExistence(timeout: 2),
             "Timer should be accessible after settings change"
         )
 
-        // Return to settings
         let settingsTab = app.tabBars.buttons["Settings"]
         settingsTab.tap()
-        sleep(1)
-
-        // Should still be on settings
-        XCTAssertTrue(
-            app.navigationBars["Settings"].exists,
-            "Should return to Settings view"
-        )
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 2), "Should return to Settings view")
     }
 }
