@@ -4,15 +4,57 @@ This directory contains UI tests for the SubTimer application using XCTest UI te
 
 ## Test Files
 
-- `SubTimerUITests.swift` - Basic launch and performance tests
-- `TimerViewUITests.swift` - Timer screen tests (20+ tests)
-- `SettingsViewUITests.swift` - Settings screen tests (25+ tests)
-- `PlayerComponentsUITests.swift` - Player component tests (20+ tests)
-- `SubTimerUITestsLaunchTests.swift` - Launch tests
+- `TimerViewUITests.swift` - Timer screen tests (7 tests)
+- `SettingsViewUITests.swift` - Settings screen tests (6 tests)
+- `PlayerComponentsUITests.swift` - Player component tests (7 tests, 2 of which are `measure()` performance tests)
+- `SubTimerUITests.swift` - App launch performance (1 test)
+- `SubTimerUITestsLaunchTests.swift` - App launch smoke test + screenshot (1 test)
 
-**Total UI Test Coverage: 65+ tests**
+**Total UI Test Coverage: 22 tests**
+
+### Hardening results (issues #43-#47)
+
+Issue #43 audited the original suite (82 test methods total) and catalogued 5
+failing tests. Each screen's tests were then hardened in its own ticket -
+fixing the catalogued failures at their root cause, replacing `sleep`/`usleep`
+synchronization with real waits, and consolidating trivial single-assertion
+smoke tests into broader per-flow tests:
+
+| File | Before | After | Wall-clock |
+|---|---|---|---|
+| `TimerViewUITests` (#44) | 24 | 7 | ~100s (after) |
+| `PlayerComponentsUITests` (#45) | 27 | 7 | 273s → 121s |
+| `SettingsViewUITests` (#46) | 28 | 6 | ~265s → ~143s |
+| `SubTimerUITests` (#47) | 2 | 1 | not separately timed |
+| `SubTimerUITestsLaunchTests` | 1 | 1 | unchanged |
+
+`SubTimerUITestsLaunchTests` runs once per target application UI
+configuration (4 in this project), so the full target executes 25 test runs
+across 22 test methods. Verified: `xcodebuild test -only-testing:SubTimerUITests`
+passes 25/25 (0 failures) on `platform=iOS Simulator,name=iPhone 17` in
+500.7s (~8.3 minutes) total.
+
+**Known gap:** this suite has only been verified on the iOS Simulator
+destination. The `platform=macOS` destination this README used to recommend
+does not build - see "Running Tests from Command Line" below - so it hasn't
+been possible to confirm 0 failures there too.
 
 ## Running Tests from Command Line
+
+All examples below target the iOS Simulator. The `macOS` destination this
+README previously recommended does not build for this app:
+
+```
+error: 'Activity' is unavailable in macOS
+  --> SubTimer/Utilities/LiveActivityManager.swift:18
+error: 'ActivityAttributes' is unavailable in macOS
+  --> ActiveBench/ActiveBenchAttributes.swift:15
+```
+
+`LiveActivityManager` and `ActiveBenchAttributes` both `import ActivityKit`,
+which macOS doesn't support - this is an app-level platform constraint
+unrelated to the UI tests, and predates the test-hardening work in
+issues #43-#47.
 
 ### Run All UI Tests
 
@@ -21,7 +63,7 @@ Run all tests in the SubTimerUITests target:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests
 ```
 
@@ -32,7 +74,7 @@ Run all tests in `TimerViewUITests`:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests/TimerViewUITests
 ```
 
@@ -41,7 +83,7 @@ Run all tests in `SettingsViewUITests`:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests/SettingsViewUITests
 ```
 
@@ -50,56 +92,39 @@ Run all tests in `PlayerComponentsUITests`:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests/PlayerComponentsUITests
 ```
 
 ### Run a Specific Test
 
-Run a single test method (e.g., `testTimerStartAndStop` in `TimerViewUITests`):
-
-```bash
-xcodebuild test \
-  -scheme SubTimer \
-  -destination 'platform=macOS' \
-  -only-testing:SubTimerUITests/TimerViewUITests/testTimerStartAndStop
-```
-
-Run another specific test (e.g., `testNavigationToSettings` in `TimerViewUITests`):
-
-```bash
-xcodebuild test \
-  -scheme SubTimer \
-  -destination 'platform=macOS' \
-  -only-testing:SubTimerUITests/TimerViewUITests/testNavigationToSettings
-```
-
-Run a performance test:
-
-```bash
-xcodebuild test \
-  -scheme SubTimer \
-  -destination 'platform=macOS' \
-  -only-testing:SubTimerUITests/SubTimerUITests/testLaunchPerformance
-```
-
-### Run Tests with Different Destinations
-
-For iOS Simulator:
+Run a single test method (e.g., `testInitialTimerScreenState` in `TimerViewUITests`):
 
 ```bash
 xcodebuild test \
   -scheme SubTimer \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -only-testing:SubTimerUITests
+  -only-testing:SubTimerUITests/TimerViewUITests/testInitialTimerScreenState
 ```
 
-For a specific macOS architecture:
+Run another specific test (e.g., `testPlayerActionSheetFlow` in `TimerViewUITests`):
 
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS,arch=arm64' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:SubTimerUITests/TimerViewUITests/testPlayerActionSheetFlow
+```
+
+### Run Tests on a Different Simulator
+
+Swap `name=iPhone 17` for any simulator installed on your machine (see
+[`SubTimer.xcodeproj -showdestinations`](../README.md#listing-available-simulators)):
+
+```bash
+xcodebuild test \
+  -scheme SubTimer \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -only-testing:SubTimerUITests
 ```
 
@@ -110,7 +135,7 @@ Run multiple test files:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests/TimerViewUITests \
   -only-testing:SubTimerUITests/SettingsViewUITests
 ```
@@ -120,9 +145,9 @@ Run specific tests across different files:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
-  -only-testing:SubTimerUITests/TimerViewUITests/testTimerStartAndStop \
-  -only-testing:SubTimerUITests/PlayerComponentsUITests/testPlayerRowsDisplayed
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:SubTimerUITests/TimerViewUITests/testInitialTimerScreenState \
+  -only-testing:SubTimerUITests/PlayerComponentsUITests/testActivePlayerRowRendersContent
 ```
 
 ### Exclude Specific Tests
@@ -132,19 +157,9 @@ Run all UI tests except those in `TimerViewUITests`:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests \
   -skip-testing:SubTimerUITests/TimerViewUITests
-```
-
-Run all tests except performance tests:
-
-```bash
-xcodebuild test \
-  -scheme SubTimer \
-  -destination 'platform=macOS' \
-  -only-testing:SubTimerUITests \
-  -skip-testing:SubTimerUITests/SubTimerUITests/testLaunchPerformance
 ```
 
 ### Verbose Output
@@ -154,7 +169,7 @@ Add `-verbose` flag for detailed output:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests \
   -verbose
 ```
@@ -166,7 +181,7 @@ For more readable output, pipe through `xcpretty` (requires installation: `gem i
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests \
   | xcpretty
 ```
@@ -178,7 +193,7 @@ Save test results to a specific directory:
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SubTimerUITests \
   -resultBundlePath ./TestResults
 ```
@@ -201,7 +216,7 @@ These tests use XCTest UI testing framework with the following components:
 ## UI Testing Tips
 
 ### Prerequisites
-- Ensure accessibility identifiers are added to UI elements (see `QUICK_START.md`)
+- Ensure accessibility identifiers are added to UI elements
 - UI tests launch the full application, so they take longer than unit tests
 - Tests run in isolation with a clean app state each time
 
@@ -238,7 +253,7 @@ Run all tests (both SubTimerTests and SubTimerUITests):
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS'
+  -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 Run only unit tests (exclude UI tests):
@@ -246,6 +261,6 @@ Run only unit tests (exclude UI tests):
 ```bash
 xcodebuild test \
   -scheme SubTimer \
-  -destination 'platform=macOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -skip-testing:SubTimerUITests
 ```

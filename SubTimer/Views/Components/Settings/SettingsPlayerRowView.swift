@@ -35,7 +35,9 @@ struct SettingsPlayerRowView: View {
                     .foregroundStyle(.appPurple)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Edit \(player.name)")
         }
+        .accessibilityIdentifier("settings.player.row")
     }
 
     // MARK: - Helper Methods
