@@ -100,14 +100,14 @@ struct SessionHistoryView: View {
 #Preview("Many Sessions") {
     var sessions: [Session] = []
 
-    for i in 1 ... 10 {
+    for sessionNumber in 1 ... 10 {
         let session = Session(
             preferredPlayTimeSeconds: 180,
             activePlayersCount: 4,
             playerNames: ["Player 1", "Player 2", "Player 3", "Player 4"]
         )
-        session.duration = TimeInterval(600 * i)
-        session.substitutionCount = i * 2
+        session.duration = TimeInterval(600 * sessionNumber)
+        session.substitutionCount = sessionNumber * 2
         sessions.append(session)
     }
 

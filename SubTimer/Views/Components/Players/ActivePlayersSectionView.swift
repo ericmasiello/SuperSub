@@ -112,7 +112,7 @@ struct ActivePlayersSectionView: View {
             Player(name: "John Doe", currentPlayDuration: 120, status: .active),
             Player(name: "Jane Smith", currentPlayDuration: 180, status: .active),
             Player(name: "Mike Johnson", currentPlayDuration: 90, status: .active),
-            Player(name: "Sarah Williams", currentPlayDuration: 150, status: .active),
+            Player(name: "Sarah Williams", currentPlayDuration: 150, status: .active)
         ],
         maxActiveCount: 4,
         onPlayerTap: { player in print("Tapped: \(player.name)") },
@@ -134,7 +134,7 @@ struct ActivePlayersSectionView: View {
 #Preview("Single Player") {
     ActivePlayersSectionView(
         players: [
-            Player(name: "Solo Player", currentPlayDuration: 200, status: .active),
+            Player(name: "Solo Player", currentPlayDuration: 200, status: .active)
         ],
         maxActiveCount: 4,
         onPlayerTap: { _ in },
@@ -148,7 +148,7 @@ struct ActivePlayersSectionView: View {
         players: [
             Player(name: "Player 1", currentPlayDuration: 120, status: .active),
             Player(name: "Player 2", currentPlayDuration: 180, status: .active),
-            Player(name: "Player 3", currentPlayDuration: 90, status: .active),
+            Player(name: "Player 3", currentPlayDuration: 90, status: .active)
         ],
         maxActiveCount: 3,
         onPlayerTap: { _ in },
@@ -161,7 +161,7 @@ struct ActivePlayersSectionView: View {
     ActivePlayersSectionView(
         players: [
             Player(name: "Player 1", currentPlayDuration: 120, status: .active),
-            Player(name: "Player 2", currentPlayDuration: 180, status: .active),
+            Player(name: "Player 2", currentPlayDuration: 180, status: .active)
         ],
         maxActiveCount: 5,
         onPlayerTap: { _ in },

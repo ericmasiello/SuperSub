@@ -253,19 +253,21 @@ final class PlayerComponentsUITests: XCTestCase {
         XCTContext.runActivity(named: "At least one player row renders across all sections") { _ in
             XCTAssertTrue(activeRows.firstMatch.waitForExistence(timeout: 3), "Active rows should render")
             let totalCount = activeRows.count + benchRows.count + tempOutRows.count
+            let rowCountsDescription = "active: \(activeRows.count), bench: \(benchRows.count), "
+                + "tempOut: \(tempOutRows.count)"
             XCTAssertGreaterThan(
                 totalCount, 0,
-                "Should have at least one player row (active: \(activeRows.count), bench: \(benchRows.count), tempOut: \(tempOutRows.count))"
+                "Should have at least one player row (\(rowCountsDescription))"
             )
         }
 
         XCTContext.runActivity(named: "Rendered active/bench rows have unique names") { _ in
             var playerNames: Set<String> = []
-            for i in 0 ..< activeRows.count {
-                playerNames.insert(activeRows.element(boundBy: i).staticTexts.element(boundBy: 0).label)
+            for rowIndex in 0 ..< activeRows.count {
+                playerNames.insert(activeRows.element(boundBy: rowIndex).staticTexts.element(boundBy: 0).label)
             }
-            for i in 0 ..< benchRows.count {
-                playerNames.insert(benchRows.element(boundBy: i).staticTexts.element(boundBy: 0).label)
+            for rowIndex in 0 ..< benchRows.count {
+                playerNames.insert(benchRows.element(boundBy: rowIndex).staticTexts.element(boundBy: 0).label)
             }
             XCTAssertEqual(
                 playerNames.count, activeRows.count + benchRows.count,
@@ -281,6 +283,7 @@ final class PlayerComponentsUITests: XCTestCase {
     /// again - all against the same app launch, verifying the player's name
     /// survives each transition.
     @MainActor
+    // swiftlint:disable:next function_body_length
     func testPlayerRowStatusTransitionFlow() {
         let activeRows = playerRow(status: "active")
         guard activeRows.firstMatch.waitForExistence(timeout: 3) else {

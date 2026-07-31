@@ -19,6 +19,9 @@ class LiveActivityManager {
 
   private init() {}
 
+  // Mirrors ActivityKit's own `ActivityContent`/attribute shape; bundling
+  // these into a struct would just move the same 7 fields one level over.
+  // swiftlint:disable:next function_parameter_count
   func startActivity(
     sessionName: String,
     isRunning: Bool,
@@ -73,6 +76,9 @@ class LiveActivityManager {
     }
   }
 
+  // Same state shape as `startActivity`, minus `sessionName` (set once at
+  // start and immutable for the Live Activity's lifetime).
+  // swiftlint:disable:next function_parameter_count
   func updateActivity(
     isRunning: Bool,
     timerStartDate: Date,
@@ -139,4 +145,3 @@ class LiveActivityManager {
     return overtime > Date() ? overtime : nil
   }
 }
-

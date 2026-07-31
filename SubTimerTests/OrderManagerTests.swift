@@ -18,7 +18,7 @@ struct OrderManagerTests {
     func initialState(role: PlayerOrderRole) {
         let manager = OrderManager(role: role)
         #expect(manager.role == role)
-        #expect(manager.count == 0)
+        #expect(manager.isEmpty)
         #expect(manager.nextPlayer == nil)
         #expect(manager.playerOrder.isEmpty)
     }
@@ -185,7 +185,7 @@ struct OrderManagerTests {
         manager.addPlayer(UUID())
 
         manager.clear()
-        #expect(manager.count == 0)
+        #expect(manager.isEmpty)
         #expect(manager.playerOrder.isEmpty)
     }
 
@@ -199,6 +199,6 @@ struct OrderManagerTests {
         #expect(bench.role == .bench)
         #expect(active.role == .active)
         #expect(bench.count == 1)
-        #expect(active.count == 0)
+        #expect(active.isEmpty)
     }
 }

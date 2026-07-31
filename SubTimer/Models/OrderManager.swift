@@ -87,4 +87,9 @@ final class OrderManager {
     var count: Int {
         return playerOrder.count
     }
+
+    /// Returns whether the order has no players
+    var isEmpty: Bool {
+        return playerOrder.isEmpty
+    }
 }

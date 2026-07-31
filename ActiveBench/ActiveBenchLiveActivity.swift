@@ -35,8 +35,7 @@ struct ActiveBenchLiveActivity: Widget {
             }
 
             if let subOut = context.state.subOutPlayerName,
-              let subIn = context.state.subInPlayerName
-            {
+              let subIn = context.state.subInPlayerName {
               Text("\(subOut) → \(subIn)")
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color("AppOrange"))
@@ -65,7 +64,6 @@ struct ActiveBenchLiveActivity: Widget {
       .padding()
       .activityBackgroundTint(Color(uiColor: .systemBackground))
       .activitySystemActionForegroundColor(Color.primary)
-
     } dynamicIsland: { context in
       DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {
@@ -99,8 +97,7 @@ struct ActiveBenchLiveActivity: Widget {
             }
 
             if let subOut = context.state.subOutPlayerName,
-              let subIn = context.state.subInPlayerName
-            {
+              let subIn = context.state.subInPlayerName {
               Text("\(subOut) → \(subIn)")
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color("AppOrange"))
@@ -128,8 +125,7 @@ struct ActiveBenchLiveActivity: Widget {
         }
       } compactTrailing: {
         if let subOut = context.state.subOutPlayerName,
-          let subIn = context.state.subInPlayerName
-        {
+          let subIn = context.state.subInPlayerName {
           Text("\(subOut) → \(subIn)")
             .font(.system(size: 12))
             .foregroundStyle(Color("AppOrange"))

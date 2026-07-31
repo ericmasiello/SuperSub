@@ -12,6 +12,11 @@
 //  • UI Presentation (lines 1-234): SwiftUI view hierarchy
 //  • Business Logic Extension (lines 235-368): All action handlers
 //
+// This screen coordinates 11 extracted subviews plus their SwiftData/Live
+// Activity wiring, which pushes the file past SwiftLint's default 400-line
+// ceiling; splitting it further is a candidate for a future pass, not this
+// lint-baseline ticket.
+// swiftlint:disable file_length
 //  11 EXTRACTED COMPONENTS:
 //
 //  Timer Components (5):
@@ -84,6 +89,9 @@ private enum TimerSheet: Identifiable {
   }
 }
 
+// This view's `body` and its state-management helpers exceed the default
+// 250-line ceiling; extracting further is future work, not this ticket.
+// swiftlint:disable:next type_body_length
 struct TimerView: View {
   @Environment(\.modelContext) private var modelContext
   @Query(sort: \Player.sortOrder) var players: [Player]
@@ -142,8 +150,8 @@ struct TimerView: View {
       let pos1 = orderToUse.firstIndex(of: player1.id)
       let pos2 = orderToUse.firstIndex(of: player2.id)
 
-      if let p1 = pos1, let p2 = pos2 {
-        return p1 < p2
+      if let pos1, let pos2 {
+        return pos1 < pos2
       } else if pos1 != nil {
         return true
       } else if pos2 != nil {
@@ -167,8 +175,8 @@ struct TimerView: View {
       let pos1 = orderToUse.firstIndex(of: player1.id)
       let pos2 = orderToUse.firstIndex(of: player2.id)
 
-      if let p1 = pos1, let p2 = pos2 {
-        return p1 < p2
+      if let pos1, let pos2 {
+        return pos1 < pos2
       } else if pos1 != nil {
         return true
       } else if pos2 != nil {
@@ -232,7 +240,7 @@ struct TimerView: View {
         VStack(spacing: 24) {
           timerControlsSection
             .id("timerControls")
-          preferredTimeDisplay            
+          preferredTimeDisplay
             .background(
               GeometryReader { geo in
                 Color.clear.preference(
@@ -429,10 +437,8 @@ extension TimerView {
     let manager = orderManager(for: role)
     let currentPlayers = players.filter { $0.status == status }
 
-    for player in currentPlayers {
-      if manager.position(of: player.id) == nil {
-        manager.addPlayer(player.id)
-      }
+    for player in currentPlayers where manager.position(of: player.id) == nil {
+      manager.addPlayer(player.id)
     }
 
     let currentIds = Set(currentPlayers.map { $0.id })
@@ -466,22 +472,22 @@ extension TimerView {
   }
 
   func toggleTimer() {
-    guard let vm = timerViewModel else { return }
-    if vm.isRunning {
-      vm.pauseTimer()
+    guard let viewModel = timerViewModel else { return }
+    if viewModel.isRunning {
+      viewModel.pauseTimer()
       cancelOvertimeUpdate()
       updateLiveActivity()
     } else {
       autoActivateInitialPlayersIfNeeded()
       createOrUpdateSession()
-      vm.startTimer()
+      viewModel.startTimer()
       startLiveActivity()
     }
   }
 
   func resetTimer() {
-    guard let vm = timerViewModel else { return }
-    vm.resetTimer()
+    guard let viewModel = timerViewModel else { return }
+    viewModel.resetTimer()
     endLiveActivity()
   }
 
@@ -490,11 +496,11 @@ extension TimerView {
     let allFilteredPlayers = activePlayers + benchedPlayers + temporarilyOutPlayers
     let playersToActivate = min(configuration.activePlayersCount, allFilteredPlayers.count)
     let now = Date()
-    for i in 0..<playersToActivate where i < allFilteredPlayers.count {
-      allFilteredPlayers[i].status = .active
-      allFilteredPlayers[i].activatedAtDate = now
-      allFilteredPlayers[i].currentPlayDuration = 0
-      activeManager.addPlayer(allFilteredPlayers[i].id)
+    for index in 0..<playersToActivate where index < allFilteredPlayers.count {
+      allFilteredPlayers[index].status = .active
+      allFilteredPlayers[index].activatedAtDate = now
+      allFilteredPlayers[index].currentPlayDuration = 0
+      activeManager.addPlayer(allFilteredPlayers[index].id)
     }
     activeOrder = activeManager.playerOrder
   }
@@ -609,7 +615,7 @@ extension TimerView {
   // MARK: - Session & Feedback
 
   private func createOrUpdateSession() {
-    guard sessions.first(where: { $0.isActive }) == nil else { return }
+    guard !sessions.contains(where: { $0.isActive }) else { return }
     let allPlayerNames = (activePlayers + benchedPlayers + temporarilyOutPlayers).map { $0.name }
     let newSession = Session(
       preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
@@ -706,6 +712,12 @@ extension TimerView {
 }
 
 #Preview("Main Timer View") {
+  // Preview providers are compile-time-only and never execute in a shipped
+  // build; the throwing `#Preview` macro overload requires a `@ViewBuilder`
+  // closure, which disallows the explicit `return` below, so `try!` (not
+  // `try?`/do-catch) is the only option that keeps this preview's original
+  // structure intact.
+  // swiftlint:disable:next force_try
   let container = try! ModelContainer(
     for: Player.self, AppConfiguration.self, Session.self,
     configurations: ModelConfiguration(isStoredInMemoryOnly: true)

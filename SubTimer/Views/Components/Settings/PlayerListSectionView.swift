@@ -52,7 +52,7 @@ struct PlayerListSectionView: View {
                 Player(name: "Alice", status: .active, sortOrder: 0),
                 Player(name: "Bob", status: .benched, sortOrder: 1),
                 Player(name: "Charlie", status: .temporarilyOut, sortOrder: 2),
-                Player(name: "Diana", status: .benched, sortOrder: 3),
+                Player(name: "Diana", status: .benched, sortOrder: 3)
             ],
             onEdit: { player in print("Edit: \(player.name)") },
             onDelete: { indices in print("Delete: \(indices)") },
@@ -78,7 +78,7 @@ struct PlayerListSectionView: View {
     Form {
         PlayerListSectionView(
             players: [
-                Player(name: "Alice", status: .active, sortOrder: 0),
+                Player(name: "Alice", status: .active, sortOrder: 0)
             ],
             onEdit: { player in print("Edit: \(player.name)") },
             onDelete: { indices in print("Delete: \(indices)") },
@@ -98,7 +98,7 @@ struct PlayerListSectionView: View {
                 Player(name: "Diana", status: .benched, sortOrder: 3),
                 Player(name: "Eve", status: .benched, sortOrder: 4),
                 Player(name: "Frank", status: .temporarilyOut, sortOrder: 5),
-                Player(name: "Grace", status: .benched, sortOrder: 6),
+                Player(name: "Grace", status: .benched, sortOrder: 6)
             ],
             onEdit: { player in print("Edit: \(player.name)") },
             onDelete: { indices in print("Delete: \(indices)") },

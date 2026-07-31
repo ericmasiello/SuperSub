@@ -1,5 +1,34 @@
 # SubTimer
 
+## Linting
+
+Swift source is linted with [SwiftLint](https://github.com/realm/SwiftLint),
+configured in [`.swiftlint.yml`](./.swiftlint.yml) at the repo root. It
+covers `SubTimer/`, `SubTimerTests/`, `SubTimerUITests/`, and `ActiveBench/`.
+
+### Install
+
+```bash
+brew install swiftlint
+```
+
+### Run
+
+From the repo root:
+
+```bash
+swiftlint lint --strict
+```
+
+`--strict` treats warnings as failures, matching what CI enforces.
+
+To auto-fix what's mechanically correctable (spacing, trailing commas,
+`isEmpty` vs. `count == 0`, etc.) before addressing anything left by hand:
+
+```bash
+swiftlint --fix
+```
+
 ## Running tests from the command line
 
 This is an Xcode project, so tests run via `xcodebuild test` rather than a
