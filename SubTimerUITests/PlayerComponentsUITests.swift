@@ -31,567 +31,344 @@ final class PlayerComponentsUITests: XCTestCase {
 
         // Navigate to Timer tab where player components are visible
         let timerTab = app.tabBars.buttons["Timer"]
-        _ = timerTab.waitForExistence(timeout: 5)
+        XCTAssertTrue(timerTab.waitForExistence(timeout: 8), "Timer tab should exist")
         timerTab.tap()
 
-        // Wait for the view to load
-        sleep(1)
+        // Wait for the actual player content to render instead of sleeping
+        // for a fixed duration.
+        XCTAssertTrue(
+            app.staticTexts["Active Players"].waitForExistence(timeout: 8),
+            "Timer view should finish loading player sections"
+        )
     }
 
     override func tearDownWithError() throws {
         app = nil
     }
 
-    // MARK: - Active Player Row Tests
+    // MARK: - Row Query Helpers
 
-    @MainActor
-    func testActivePlayerRowDisplaysName() {
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-
-        if activeRows.count > 0 {
-            let firstRow = activeRows.element(boundBy: 0)
-            XCTAssertTrue(firstRow.exists, "Active player row should exist")
-
-            // Should have player name
-            let nameLabel = firstRow.staticTexts.element(boundBy: 0)
-            XCTAssertTrue(nameLabel.exists, "Player name should be displayed")
-            XCTAssertFalse(nameLabel.label.isEmpty, "Player name should not be empty")
-        }
+    /// `ActivePlayerRowView`/`BenchPlayerRowView` apply their
+    /// `.accessibilityIdentifier("player.row.<status>")` to an HStack that
+    /// also contains an interactive "More" button; SwiftUI pushes that
+    /// identifier onto the button's leaves rather than the List row itself,
+    /// so matching cells that *contain* that button finds the actual row -
+    /// including its name/time text - regardless of where the identifier
+    /// physically surfaces.
+    private func playerRow(status: String) -> XCUIElementQuery {
+        app.cells.containing(.button, identifier: "player.row.\(status)")
     }
 
-    @MainActor
-    func testActivePlayerRowDisplaysPlayTime() {
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-
-        if activeRows.count > 0 {
-            let firstRow = activeRows.element(boundBy: 0)
-
-            // Should have time display (format: M:SS)
-            let timeDisplay = firstRow.staticTexts.matching(
-                NSPredicate(format: "label MATCHES %@", "\\d+:\\d{2}")
-            ).firstMatch
-
-            XCTAssertTrue(
-                timeDisplay.exists,
-                "Active player should display current play time"
-            )
-        }
+    /// Scopes to the row's action button within an already-located row,
+    /// mirroring `TimerViewUITests.playerRowActionButtons`'s defensive
+    /// `identifier AND label` match.
+    private func moreButton(in row: XCUIElement, status: String) -> XCUIElement {
+        row.buttons.matching(
+            NSPredicate(format: "identifier == 'player.row.\(status)' AND label == 'More'")
+        ).firstMatch
     }
 
+    /// Temporarily-out rows render in a `LazyVStack`, not a `List`, so
+    /// there's no row-level cell to query. Its only interactive element -
+    /// "Return to Bench" - has a stable, inferred accessibility label, so
+    /// it's matched directly.
+    private func returnToBenchButtons() -> XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "label == 'Return to Bench'"))
+    }
+
+    /// `TemporarilyOutSectionView` lays out its rows in a `LazyVStack`
+    /// inside the screen's outer `ScrollView`, so a row below the fold
+    /// (e.g. the seeded temp-out player, which sits below Active Players
+    /// and Bench) isn't materialized into the accessibility tree until it
+    /// scrolls into view. Swipes up until `element` exists or gives up.
+    @discardableResult
+    private func scrollUntilVisible(_ element: XCUIElement) -> Bool {
+        var remainingSwipes = 4
+        while !element.exists, remainingSwipes > 0 {
+            app.swipeUp()
+            remainingSwipes -= 1
+        }
+        return element.waitForExistence(timeout: 2)
+    }
+
+    /// Finds the row (of a given status) whose displayed name matches
+    /// `name`, without looping over `allElementsBoundByIndex`.
+    private func row(status: String, named name: String) -> XCUIElement {
+        playerRow(status: status).containing(
+            NSPredicate(format: "elementType == \(XCUIElement.ElementType.staticText.rawValue) AND label == %@", name)
+        ).firstMatch
+    }
+
+    /// Matches a time display in `M:SS` (or `H:MM:SS`) format, shared by
+    /// every check below that looks for a rendered time regardless of which
+    /// row/section it's in.
+    private func timeDisplayPredicate(includeHours: Bool = false) -> NSPredicate {
+        let pattern = includeHours ? "\\d+:\\d{2}(:\\d{2})?" : "\\d+:\\d{2}"
+        return NSPredicate(format: "label MATCHES %@", pattern)
+    }
+
+    // MARK: - Initial Section Render State
+
+    /// Consolidates every read-only smoke check against the sections'
+    /// initial render: headers, seeded player counts, the conditionally
+    /// displayed Temporarily Out section, shared time-display format, and
+    /// scroll stability. The seeded fixture always has 2 active, 2 benched,
+    /// and 1 temporarily out player (see `SubTimerApp.setupTestData`).
     @MainActor
-    func testActivePlayerRowDisplaysTotalTime() {
-        let activeRows = app.cells.matching(identifier: "player.row.active")
+    func testInitialPlayerSectionsRenderState() {
+        XCTContext.runActivity(named: "Active Players section header and count") { _ in
+            XCTAssertTrue(app.staticTexts["Active Players"].exists, "Active Players header should exist")
+            let countTexts = app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", "\\d+/\\d+"))
+            XCTAssertGreaterThan(countTexts.count, 0, "Should display an active players count (e.g. 2/5)")
+        }
 
-        if activeRows.count > 0 {
-            let firstRow = activeRows.element(boundBy: 0)
-
-            // Should have total time indicator
-            let totalTimeLabels = firstRow.staticTexts.matching(
-                NSPredicate(format: "label CONTAINS[c] 'total' OR label MATCHES %@", "\\d+:\\d{2}")
-            )
-
-            // At least one time display should exist
+        XCTContext.runActivity(named: "Bench section header and seeded players") { _ in
+            XCTAssertTrue(app.staticTexts["Bench"].exists, "Bench header should exist")
             XCTAssertGreaterThan(
-                totalTimeLabels.count, 0,
-                "Active player should show time information"
+                playerRow(status: "bench").count, 0,
+                "Seeded fixture should have benched players"
             )
         }
-    }
 
-    @MainActor
-    func testActivePlayerRowInteraction() {
-        let activeRows = app.cells.matching(identifier: "player.row.active")
+        XCTContext.runActivity(named: "Time displays use M:SS or H:MM:SS format") { _ in
+            let timeDisplays = app.staticTexts.matching(timeDisplayPredicate(includeHours: true))
+            XCTAssertGreaterThan(timeDisplays.count, 0, "Should have time displays in M:SS format")
+        }
 
-        if activeRows.count > 0 {
-            let firstRow = activeRows.element(boundBy: 0)
-
-            // Row should be tappable
-            firstRow.tap()
-            sleep(1)
-
-            // Should show action sheet
-            let actionSheet = app.sheets.firstMatch
-            let actionButtons = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'bench' OR label CONTAINS[c] 'cancel'")
-            )
-
+        XCTContext.runActivity(named: "Active Players section remains stable after scrolling") { _ in
+            app.swipeUp()
+            app.swipeDown()
             XCTAssertTrue(
-                actionSheet.exists || actionButtons.count > 0,
-                "Tapping active player should show action sheet"
+                app.staticTexts["Active Players"].waitForExistence(timeout: 2),
+                "Should remain on timer view after scrolling"
             )
+        }
 
-            // Close action sheet
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
-            } else {
-                app.tap()
-            }
+        // Runs last: the seeded temp-out player's row lives in a `LazyVStack`
+        // below Active Players and Bench, so this must scroll past the
+        // stability check above rather than before it (see
+        // `scrollUntilVisible`'s doc comment).
+        XCTContext.runActivity(named: "Temporarily Out section appears for the seeded temp-out player") { _ in
+            XCTAssertTrue(
+                app.staticTexts["Temporarily Out"].waitForExistence(timeout: 2),
+                "Temporarily Out section should appear when a player has that status"
+            )
+            XCTAssertTrue(
+                scrollUntilVisible(returnToBenchButtons().firstMatch),
+                "Seeded fixture should have a temporarily out player"
+            )
         }
     }
 
+    // MARK: - Active Player Row Content
+
+    /// Consolidates every read-only check against a single active player
+    /// row: name, current play time, and its accessible action button.
+    ///
+    /// The dropped `testActivePlayerRowAccessibility` originally asserted
+    /// `firstRow.value` was non-nil, but that never actually ran under the
+    /// old `app.cells.matching(identifier:)` query (always zero matches).
+    /// With the query fixed, a `Cell`/row container turns out to have no
+    /// accessibility "value" trait (confirmed via `app.debugDescription`),
+    /// so that check is replaced below with a real one - that the row's
+    /// action button is present and enabled - rather than restoring an
+    /// assertion that would now fail.
     @MainActor
-    func testActivePlayerRowAccessibility() {
-        let activeRows = app.cells.matching(identifier: "player.row.active")
+    func testActivePlayerRowRendersContent() {
+        let activeRows = playerRow(status: "active")
+        guard activeRows.firstMatch.waitForExistence(timeout: 3) else {
+            XCTFail("Expected at least one active player row from seeded fixture data")
+            return
+        }
+        let firstRow = activeRows.element(boundBy: 0)
 
-        if activeRows.count > 0 {
-            let firstRow = activeRows.element(boundBy: 0)
+        XCTContext.runActivity(named: "Displays a non-empty player name") { _ in
+            let nameLabel = firstRow.staticTexts.element(boundBy: 0)
+            XCTAssertTrue(nameLabel.exists, "Active player name should be displayed")
+            XCTAssertFalse(nameLabel.label.isEmpty, "Active player name should not be empty")
+        }
 
-            XCTAssertTrue(firstRow.exists)
-            XCTAssertNotNil(firstRow.value, "Active player row should have accessibility value")
+        XCTContext.runActivity(named: "Displays current play time in M:SS format") { _ in
+            let timeDisplay = firstRow.staticTexts.matching(timeDisplayPredicate()).firstMatch
+            XCTAssertTrue(timeDisplay.exists, "Active player should display current play time")
+        }
+
+        XCTContext.runActivity(named: "Row exposes an accessible 'More' action button") { _ in
+            let button = moreButton(in: firstRow, status: "active")
+            XCTAssertTrue(button.exists, "Active player row should have an accessible action button")
+            XCTAssertTrue(button.isEnabled, "Action button should be enabled")
         }
     }
 
-    // MARK: - Bench Player Row Tests
+    // MARK: - Bench Player Row Content
 
+    /// Consolidates every read-only check against a single benched player
+    /// row: name, total time, and its visual/structural difference from an
+    /// active row (bench rows show "Total:", active rows show a bare time).
     @MainActor
-    func testBenchPlayerRowDisplaysName() {
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
+    func testBenchPlayerRowRendersContent() {
+        let benchRows = playerRow(status: "bench")
+        guard benchRows.firstMatch.waitForExistence(timeout: 3) else {
+            XCTFail("Expected at least one benched player row from seeded fixture data")
+            return
+        }
+        let firstRow = benchRows.element(boundBy: 0)
 
-        if benchRows.count > 0 {
-            let firstRow = benchRows.element(boundBy: 0)
-            XCTAssertTrue(firstRow.exists, "Bench player row should exist")
-
-            // Should have player name
+        XCTContext.runActivity(named: "Displays a non-empty player name") { _ in
             let nameLabel = firstRow.staticTexts.element(boundBy: 0)
             XCTAssertTrue(nameLabel.exists, "Benched player name should be displayed")
             XCTAssertFalse(nameLabel.label.isEmpty, "Benched player name should not be empty")
         }
-    }
 
-    @MainActor
-    func testBenchPlayerRowDisplaysTotalTime() {
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
-
-        if benchRows.count > 0 {
-            let firstRow = benchRows.element(boundBy: 0)
-
-            // Should show total play time
-            let timeDisplay = firstRow.staticTexts.matching(
-                NSPredicate(format: "label MATCHES %@", "\\d+:\\d{2}")
+        XCTContext.runActivity(named: "Displays total play time prefixed with 'Total:'") { _ in
+            let totalTimeLabel = firstRow.staticTexts.matching(
+                NSPredicate(format: "label CONTAINS[c] 'Total:'")
             ).firstMatch
+            XCTAssertTrue(totalTimeLabel.exists, "Benched player should show a 'Total:' time label")
+        }
 
-            // Time display might be present
-            _ = timeDisplay.exists
+        XCTContext.runActivity(named: "Renders distinctly from an active row") { _ in
+            let activeRows = playerRow(status: "active")
+            XCTAssertTrue(activeRows.firstMatch.exists, "Active rows should also exist alongside bench rows")
+            let activeTotalTimeLabel = activeRows.element(boundBy: 0).staticTexts.matching(
+                NSPredicate(format: "label CONTAINS[c] 'Total:'")
+            ).firstMatch
+            XCTAssertFalse(
+                activeTotalTimeLabel.exists,
+                "Active rows should not show a 'Total:' label the way bench rows do"
+            )
         }
     }
 
+    // MARK: - Multi-Row Rendering & Identity
+
+    /// Verifies rendered rows exist across all sections and that every
+    /// active/bench player has a unique displayed name.
     @MainActor
-    func testBenchPlayerRowInteraction() {
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
+    func testMultiplePlayerRowsRenderWithUniqueIdentity() {
+        let activeRows = playerRow(status: "active")
+        let benchRows = playerRow(status: "bench")
+        let tempOutRows = returnToBenchButtons()
 
-        if benchRows.count > 0 {
-            let firstRow = benchRows.element(boundBy: 0)
-
-            // Row should be tappable
-            firstRow.tap()
-            sleep(1)
-
-            // Should show action sheet with substitute/activate option
-            let actionButtons = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'substitute' OR label CONTAINS[c] 'activate'")
+        XCTContext.runActivity(named: "At least one player row renders across all sections") { _ in
+            XCTAssertTrue(activeRows.firstMatch.waitForExistence(timeout: 3), "Active rows should render")
+            let totalCount = activeRows.count + benchRows.count + tempOutRows.count
+            XCTAssertGreaterThan(
+                totalCount, 0,
+                "Should have at least one player row (active: \(activeRows.count), bench: \(benchRows.count), tempOut: \(tempOutRows.count))"
             )
+        }
 
-            XCTAssertTrue(
-                actionButtons.count > 0 || app.buttons["Cancel"].exists,
-                "Tapping benched player should show action sheet"
-            )
-
-            // Close action sheet
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
+        XCTContext.runActivity(named: "Rendered active/bench rows have unique names") { _ in
+            var playerNames: Set<String> = []
+            for i in 0 ..< activeRows.count {
+                playerNames.insert(activeRows.element(boundBy: i).staticTexts.element(boundBy: 0).label)
             }
+            for i in 0 ..< benchRows.count {
+                playerNames.insert(benchRows.element(boundBy: i).staticTexts.element(boundBy: 0).label)
+            }
+            XCTAssertEqual(
+                playerNames.count, activeRows.count + benchRows.count,
+                "Every rendered active/bench row should have a unique player name"
+            )
         }
     }
 
+    // MARK: - Player Status Transition Flow
+
+    /// Exercises the full status lifecycle a player row can go through on
+    /// this screen - active -> temporarily out -> back to bench -> active
+    /// again - all against the same app launch, verifying the player's name
+    /// survives each transition.
     @MainActor
-    func testBenchPlayerRowVisualDifferentiation() {
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-
-        // If both types exist, they should be visually different
-        if benchRows.count > 0, activeRows.count > 0 {
-            let benchRow = benchRows.element(boundBy: 0)
-            let activeRow = activeRows.element(boundBy: 0)
-
-            // Both should exist
-            XCTAssertTrue(benchRow.exists)
-            XCTAssertTrue(activeRow.exists)
-
-            // This is a smoke test that different row types render
+    func testPlayerRowStatusTransitionFlow() {
+        let activeRows = playerRow(status: "active")
+        guard activeRows.firstMatch.waitForExistence(timeout: 3) else {
+            XCTFail("Expected at least one active player row from seeded fixture data")
+            return
         }
-    }
 
-    // MARK: - Temporarily Out Player Row Tests
+        var transitionedPlayerName = ""
 
-    @MainActor
-    func testTemporarilyOutPlayerRowDisplaysName() {
-        // First, try to create a temporarily out player
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-
-        if activeRows.count > 0 {
+        XCTContext.runActivity(
+            named: "Tapping an active row's action button marks the player temporarily out"
+        ) { _ in
             let firstRow = activeRows.element(boundBy: 0)
-            firstRow.tap()
-            sleep(1)
+            transitionedPlayerName = firstRow.staticTexts.element(boundBy: 0).label
 
-            // Look for "Temporarily Out" action
-            let tempOutButton = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'temporarily out' OR label CONTAINS[c] 'temp out'")
-            ).firstMatch
+            moreButton(in: firstRow, status: "active").tap()
 
-            if tempOutButton.exists, tempOutButton.isEnabled {
-                tempOutButton.tap()
-                sleep(1)
-
-                // Now check for temporarily out rows
-                let tempOutRows = app.cells.matching(identifier: "player.row.tempout")
-
-                if tempOutRows.count > 0 {
-                    let firstTempOutRow = tempOutRows.element(boundBy: 0)
-                    XCTAssertTrue(firstTempOutRow.exists, "Temporarily out player row should exist")
-
-                    // Should have player name
-                    let nameLabel = firstTempOutRow.staticTexts.element(boundBy: 0)
-                    XCTAssertTrue(nameLabel.exists, "Temporarily out player name should be displayed")
-                }
-            } else {
-                // No temp out action available, close sheet
-                let cancelButton = app.buttons["Cancel"]
-                if cancelButton.exists {
-                    cancelButton.tap()
-                }
+            let tempOutButton = app.buttons["Mark Temporarily Out"]
+            guard tempOutButton.waitForExistence(timeout: 2) else {
+                XCTFail("Mark Temporarily Out action should be available for an active player")
+                return
             }
-        }
-    }
-
-    @MainActor
-    func testTemporarilyOutPlayerRowInteraction() {
-        let tempOutRows = app.cells.matching(identifier: "player.row.tempout")
-
-        if tempOutRows.count > 0 {
-            let firstRow = tempOutRows.element(boundBy: 0)
-
-            // Row should be tappable
-            firstRow.tap()
-            sleep(1)
-
-            // Should show action sheet
-            let actionButtons = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'return' OR label CONTAINS[c] 'activate'")
-            )
+            tempOutButton.tap()
 
             XCTAssertTrue(
-                actionButtons.count > 0 || app.buttons["Cancel"].exists,
-                "Tapping temporarily out player should show action sheet"
+                app.staticTexts["Temporarily Out"].waitForExistence(timeout: 2),
+                "Temporarily Out section should appear"
             )
-
-            // Close action sheet
-            let cancelButton = app.buttons["Cancel"]
-            if cancelButton.exists {
-                cancelButton.tap()
-            }
-        }
-    }
-
-    // MARK: - Active Players Section Tests
-
-    @MainActor
-    func testActivePlayersSectionHeader() {
-        let sectionHeader = app.staticTexts["Active Players"]
-
-        XCTAssertTrue(
-            sectionHeader.exists,
-            "Active Players section header should exist"
-        )
-    }
-
-    @MainActor
-    func testActivePlayersSectionHasPlayers() {
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-
-        // Should have at least some active players in a functional app
-        // This is configuration-dependent
-        _ = activeRows.count
-    }
-
-    @MainActor
-    func testActivePlayersSectionDisplaysCount() {
-        let sectionHeader = app.staticTexts["Active Players"]
-
-        if sectionHeader.exists {
-            // Count might be in header or nearby
-            let countTexts = app.staticTexts.matching(
-                NSPredicate(format: "label MATCHES %@", "\\d+")
-            )
-
-            // Some count indication should exist
-            XCTAssertGreaterThan(countTexts.count, 0, "Should display player counts")
-        }
-    }
-
-    @MainActor
-    func testActivePlayersSectionScrolling() {
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-
-        if activeRows.count > 3 {
-            // If many players, should be scrollable
-            app.swipeUp()
-            sleep(1)
-            app.swipeDown()
-            sleep(1)
-
-            // Should still be on timer view
+            // The temp-out row lives in a `LazyVStack` below the fold (see
+            // `scrollUntilVisible`), so it must be scrolled into view before
+            // it exists in the accessibility tree.
             XCTAssertTrue(
-                app.staticTexts["Active Players"].exists,
-                "Should remain on timer view after scrolling"
+                scrollUntilVisible(app.staticTexts[transitionedPlayerName]),
+                "Player name should still be displayed after moving to Temporarily Out"
             )
         }
-    }
 
-    // MARK: - Bench Section Tests
+        XCTContext.runActivity(named: "Returning a temporarily out player moves them back to the bench") { _ in
+            let returnButton = returnToBenchButtons().firstMatch
+            guard scrollUntilVisible(returnButton) else {
+                XCTFail("Return to Bench button should be available for a temporarily out player")
+                return
+            }
+            returnButton.tap()
 
-    @MainActor
-    func testBenchSectionHeader() {
-        let sectionHeader = app.staticTexts["Bench"]
-
-        XCTAssertTrue(
-            sectionHeader.exists,
-            "Bench section header should exist"
-        )
-    }
-
-    @MainActor
-    func testBenchSectionDisplaysPlayers() {
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
-
-        // Bench may have 0 or more players
-        _ = benchRows.count
-    }
-
-    @MainActor
-    func testBenchSectionEmptyState() {
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
-
-        if benchRows.count == 0 {
-            // Should show empty state or just empty list
-            let benchSection = app.staticTexts["Bench"]
-            XCTAssertTrue(benchSection.exists, "Bench section should exist even when empty")
-        }
-    }
-
-    // MARK: - Temporarily Out Section Tests
-
-    @MainActor
-    func testTemporarilyOutSectionConditionalDisplay() {
-        // Section should only appear when there are temporarily out players
-        let tempOutSection = app.staticTexts["Temporarily Out"]
-        let tempOutRows = app.cells.matching(identifier: "player.row.tempout")
-
-        if tempOutRows.count > 0 {
             XCTAssertTrue(
-                tempOutSection.exists,
-                "Temporarily Out section should appear when players are temporarily out"
+                app.staticTexts["Bench"].waitForExistence(timeout: 2),
+                "Bench section should still exist after returning a player"
             )
-        } else {
-            // Section might not exist when no players are temporarily out
-            _ = tempOutSection.exists
-        }
-    }
-
-    // MARK: - Time Display Formatting Tests
-
-    @MainActor
-    func testTimeDisplayFormat() {
-        // Find all time displays
-        let timeDisplays = app.staticTexts.matching(
-            NSPredicate(format: "label MATCHES %@", "\\d+:\\d{2}(:\\d{2})?")
-        )
-
-        XCTAssertGreaterThan(
-            timeDisplays.count, 0,
-            "Should have time displays in M:SS or H:MM:SS format"
-        )
-
-        // Verify each time display has valid format
-        for i in 0 ..< min(timeDisplays.count, 5) {
-            let timeDisplay = timeDisplays.element(boundBy: i)
-            if timeDisplay.exists {
-                let label = timeDisplay.label
-
-                // Should match time format
-                XCTAssertTrue(
-                    label.contains(":"),
-                    "Time display should contain colon separator"
-                )
-            }
-        }
-    }
-
-    @MainActor
-    func testZeroTimeDisplay() {
-        // Benched players might show 0:00
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
-
-        if benchRows.count > 0 {
-            let firstRow = benchRows.element(boundBy: 0)
-
-            // Look for 0:00 or similar
-            let zeroTime = firstRow.staticTexts.matching(
-                NSPredicate(format: "label == '0:00' OR label == '00:00'")
-            ).firstMatch
-
-            // Zero time might or might not exist depending on player history
-            _ = zeroTime.exists
-        }
-    }
-
-    // MARK: - Player Status Transition Tests
-
-    @MainActor
-    func testActiveToTempOutTransition() {
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-        let initialActiveCount = activeRows.count
-
-        if initialActiveCount > 0 {
-            let firstRow = activeRows.element(boundBy: 0)
-            let playerName = firstRow.staticTexts.element(boundBy: 0).label
-
-            firstRow.tap()
-            sleep(1)
-
-            let tempOutButton = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'temporarily out'")
-            ).firstMatch
-
-            if tempOutButton.exists, tempOutButton.isEnabled {
-                tempOutButton.tap()
-                sleep(1)
-
-                // Verify player moved to temp out section
-                let tempOutSection = app.staticTexts["Temporarily Out"]
-                XCTAssertTrue(
-                    tempOutSection.exists,
-                    "Temporarily Out section should appear"
-                )
-
-                // Active count might decrease
-                let newActiveCount = app.cells.matching(identifier: "player.row.active").count
-                XCTAssertLessThanOrEqual(
-                    newActiveCount, initialActiveCount,
-                    "Active player count should not increase"
-                )
-            } else {
-                // Close action sheet
-                let cancelButton = app.buttons["Cancel"]
-                if cancelButton.exists {
-                    cancelButton.tap()
-                }
-            }
-        }
-    }
-
-    @MainActor
-    func testTempOutToActiveTransition() {
-        let tempOutRows = app.cells.matching(identifier: "player.row.tempout")
-
-        if tempOutRows.count > 0 {
-            let firstRow = tempOutRows.element(boundBy: 0)
-            firstRow.tap()
-            sleep(1)
-
-            let returnButton = app.buttons.matching(
-                NSPredicate(format: "label CONTAINS[c] 'return' OR label CONTAINS[c] 'activate'")
-            ).firstMatch
-
-            if returnButton.exists, returnButton.isEnabled {
-                returnButton.tap()
-                sleep(2)
-
-                // Player should move back to active or require substitution
-                // Verify UI is still stable
-                XCTAssertTrue(
-                    app.staticTexts["Active Players"].exists,
-                    "Active Players section should still exist"
-                )
-            } else {
-                let cancelButton = app.buttons["Cancel"]
-                if cancelButton.exists {
-                    cancelButton.tap()
-                }
-            }
-        }
-    }
-
-    // MARK: - Multi-Player Interaction Tests
-
-    @MainActor
-    func testMultiplePlayerRowsRenderCorrectly() {
-        // Wait a bit for the view to fully load
-        sleep(2)
-
-        // Try to find active player rows first
-        let activeRows = app.cells.matching(identifier: "player.row.active")
-        let benchRows = app.cells.matching(identifier: "player.row.bench")
-        let tempOutRows = app.cells.matching(identifier: "player.row.tempout")
-
-        // Count all player rows
-        let totalCount = activeRows.count + benchRows.count + tempOutRows.count
-
-        XCTAssertGreaterThan(
-            totalCount, 0,
-            "Should have at least one player row (active: \(activeRows.count), bench: \(benchRows.count), tempOut: \(tempOutRows.count))"
-        )
-
-        // Verify active rows exist if there are any
-        if activeRows.count > 0 {
-            let firstActiveRow = activeRows.element(boundBy: 0)
             XCTAssertTrue(
-                firstActiveRow.waitForExistence(timeout: 2), "First active player row should exist"
+                app.staticTexts[transitionedPlayerName].waitForExistence(timeout: 2),
+                "Player name should still be displayed after returning to the bench"
             )
         }
 
-        // Verify bench rows exist if there are any
-        if benchRows.count > 0 {
-            let firstBenchRow = benchRows.element(boundBy: 0)
-            XCTAssertTrue(
-                firstBenchRow.waitForExistence(timeout: 2), "First bench player row should exist"
-            )
-        }
-    }
-
-    @MainActor
-    func testPlayerRowsHaveUniqueNames() {
-        let allPlayerRows = app.cells.matching(
-            NSPredicate(format: "identifier CONTAINS 'player.row'")
-        )
-
-        var playerNames: Set<String> = []
-
-        for i in 0 ..< min(allPlayerRows.count, 10) {
-            let row = allPlayerRows.element(boundBy: i)
-            if row.exists {
-                let nameLabel = row.staticTexts.element(boundBy: 0)
-                if nameLabel.exists {
-                    let name = nameLabel.label
-
-                    // Track unique names (duplicate names might be valid in some apps)
-                    playerNames.insert(name)
-                }
+        XCTContext.runActivity(named: "Activating a benched player moves them to Active Players") { _ in
+            let benchRow = row(status: "bench", named: transitionedPlayerName)
+            guard benchRow.waitForExistence(timeout: 2) else {
+                XCTFail("Expected to find \(transitionedPlayerName) back on the bench")
+                return
             }
-        }
+            moreButton(in: benchRow, status: "bench").tap()
 
-        XCTAssertGreaterThan(playerNames.count, 0, "Should have player names")
+            let activateButton = app.buttons["Activate Player"]
+            guard activateButton.waitForExistence(timeout: 2) else {
+                // Only offered when the active roster has room; close
+                // gracefully rather than fail if capacity was reached.
+                app.buttons["Close"].tap()
+                return
+            }
+            activateButton.tap()
+
+            XCTAssertTrue(
+                app.staticTexts[transitionedPlayerName].waitForExistence(timeout: 2),
+                "Player name should still be displayed after activation"
+            )
+        }
     }
 
     // MARK: - Performance Tests
 
     @MainActor
     func testPlayerRowsRenderPerformance() {
-        // Measure time to render player rows
+        // Measures querying real rows via `playerRow(status:)`, not the raw
+        // `.cells.matching(identifier:)` form, which always returns zero
+        // matches and would measure querying an empty collection instead.
         measure(metrics: [XCTClockMetric()]) {
-            let activeRows = app.cells.matching(identifier: "player.row.active")
-            _ = activeRows.count
+            _ = playerRow(status: "active").count
         }
     }
 
