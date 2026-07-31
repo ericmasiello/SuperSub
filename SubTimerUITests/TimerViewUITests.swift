@@ -79,10 +79,13 @@ final class TimerViewUITests: XCTestCase {
     /// element (SwiftUI decomposes the row into separate accessibility
     /// elements here), so the row's `ellipsis.circle` action button - the
     /// one actually wired to open the action sheet - is what carries that
-    /// identifier alongside its own "More" label. Pass `status` ("active" or
-    /// "bench") to scope to one section; omit it to match either. Temporarily-out
-    /// rows have no such button (they only expose "Return to Bench"), so they're
-    /// correctly excluded from this query.
+    /// identifier alongside its own explicit "More" label (set via
+    /// `.accessibilityLabel("More")` in `ActivePlayerRowView`/
+    /// `BenchPlayerRowView`, not left to the SF Symbol's implicit VoiceOver
+    /// label). Pass `status` ("active" or "bench") to scope to one section;
+    /// omit it to match either. Temporarily-out rows have no such button
+    /// (they only expose "Return to Bench"), so they're correctly excluded
+    /// from this query.
     private func playerRowActionButtons(status: String? = nil) -> XCUIElementQuery {
         let identifierClause = status.map { "identifier == 'player.row.\($0)'" }
             ?? "identifier BEGINSWITH 'player.row'"

@@ -43,6 +43,7 @@ struct ActivePlayerRowView: View {
                     .foregroundStyle(.appPurple)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("More")
         }
         .padding()
         .accessibilityIdentifier("player.row.active")
