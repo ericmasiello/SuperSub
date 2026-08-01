@@ -56,7 +56,7 @@ struct ManualSubstitutionSheetView: View {
         benchPlayers: [
             Player(name: "Bob", status: .benched, sortOrder: 1),
             Player(name: "Charlie", status: .benched, sortOrder: 2),
-            Player(name: "Diana", status: .benched, sortOrder: 3),
+            Player(name: "Diana", status: .benched, sortOrder: 3)
         ],
         onSubstitute: { player in print("Substituting in: \(player.name)") },
         onCancel: { print("Cancelled") }
@@ -67,7 +67,7 @@ struct ManualSubstitutionSheetView: View {
     ManualSubstitutionSheetView(
         playerToSubOut: Player(name: "Alice", status: .active, sortOrder: 0),
         benchPlayers: [
-            Player(name: "Bob", status: .benched, sortOrder: 1),
+            Player(name: "Bob", status: .benched, sortOrder: 1)
         ],
         onSubstitute: { player in print("Substituting in: \(player.name)") },
         onCancel: { print("Cancelled") }
@@ -80,7 +80,7 @@ struct ManualSubstitutionSheetView: View {
         benchPlayers: [
             Player(name: "Bob", totalPlayTime: 300, status: .benched, sortOrder: 1),
             Player(name: "Charlie", totalPlayTime: 180, status: .benched, sortOrder: 2),
-            Player(name: "Diana", totalPlayTime: 420, status: .benched, sortOrder: 3),
+            Player(name: "Diana", totalPlayTime: 420, status: .benched, sortOrder: 3)
         ],
         onSubstitute: { player in print("Substituting in: \(player.name)") },
         onCancel: { print("Cancelled") }

@@ -232,7 +232,7 @@ struct TimerViewModelTests {
         let players = [
             Player(name: "Player 1"),
             Player(name: "Player 2"),
-            Player(name: "Player 3"),
+            Player(name: "Player 3")
         ]
         let viewModel = await TimerViewModel(players: players)
 

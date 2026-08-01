@@ -17,6 +17,14 @@
 
 import XCTest
 
+// Each `test...Flow`/`testInitial...State` method below intentionally
+// consolidates several related checks into one app launch (see their
+// individual doc comments); that consolidation is what pushes this file
+// and class past SwiftLint's default length ceilings, so both are disabled
+// here rather than by splitting the flows back apart.
+// swiftlint:disable file_length
+
+// swiftlint:disable:next type_body_length
 final class TimerViewUITests: XCTestCase {
     var app: XCUIApplication!
 
@@ -85,6 +93,7 @@ final class TimerViewUITests: XCTestCase {
     /// away/back to Settings. Each condition is its own activity so a
     /// failure identifies precisely which one broke.
     @MainActor
+    // swiftlint:disable:next function_body_length
     func testInitialTimerScreenState() {
         let playPauseButton = app.buttons.matching(identifier: "timer.play.pause").firstMatch
 
@@ -128,7 +137,9 @@ final class TimerViewUITests: XCTestCase {
         }
 
         XCTContext.runActivity(named: "Player rows render with a tappable action button") { _ in
+            // XCUIElementQuery has no `isEmpty`, only `count` (an XCTest API constraint).
             XCTAssertTrue(
+                // swiftlint:disable:next empty_count
                 playerRowActionButtons().count > 0,
                 "At least one player row should render its action ('More') button"
             )
@@ -214,6 +225,7 @@ final class TimerViewUITests: XCTestCase {
     /// against the same app launch. (There is no direct "bench an active
     /// player" action in this sheet: benching only happens via substitution.)
     @MainActor
+    // swiftlint:disable:next function_body_length
     func testPlayerActionSheetFlow() {
         XCTContext.runActivity(named: "Tapping an active player's row shows its status-appropriate actions") { _ in
             let activeRowButtons = playerRowActionButtons(status: "active")
@@ -295,6 +307,7 @@ final class TimerViewUITests: XCTestCase {
     /// screen - `ManualSubstitutionSheetView` presents a plain list of bench
     /// players to sub in, titled "Select Player to Sub In".
     @MainActor
+    // swiftlint:disable:next function_body_length
     func testSubstitutionFlows() {
         XCTContext.runActivity(named: "Automatic substitution keeps the user on the Timer view") { _ in
             let subButton = app.buttons["Substitute"]
@@ -440,6 +453,8 @@ final class TimerViewUITests: XCTestCase {
 
             // Change player status
             let rowActionButtons = playerRowActionButtons()
+            // XCUIElementQuery has no `isEmpty`, only `count` (an XCTest API constraint).
+            // swiftlint:disable:next empty_count
             if rowActionButtons.count > 0 {
                 let closeButton = app.buttons["Close"]
                 rowActionButtons.element(boundBy: 0).tap()

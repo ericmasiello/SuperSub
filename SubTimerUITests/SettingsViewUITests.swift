@@ -33,6 +33,13 @@
 
 import XCTest
 
+// The consolidation described above (issue #46) trades method count for
+// length in both this file and its remaining flow methods; splitting them
+// back up would undo that consolidation, so the length ceiling is disabled
+// for the rest of this file rather than elsewhere in the codebase.
+// swiftlint:disable file_length
+
+// swiftlint:disable:next type_body_length
 final class SettingsViewUITests: XCTestCase {
     /// Matches `SettingsPlayerRowView`'s `.accessibilityIdentifier`. Kept as
     /// one constant so the row query and the swipe-target query below can't
@@ -207,6 +214,7 @@ final class SettingsViewUITests: XCTestCase {
     /// there is no accessible control that enters list edit mode, so there
     /// was never any real coverage to preserve here.
     @MainActor
+    // swiftlint:disable:next function_body_length
     func testPlayerManagementFlow() {
         let initialRowCount = playerRowEditButtons().count
 
@@ -300,6 +308,7 @@ final class SettingsViewUITests: XCTestCase {
     /// picker into a single pass, plus boundary behavior at both ends of the
     /// stepper's range.
     @MainActor
+    // swiftlint:disable:next function_body_length
     func testConfigurationFlow() {
         let stepper = app.steppers.firstMatch
         XCTAssertTrue(stepper.waitForExistence(timeout: 2), "Stepper should exist")

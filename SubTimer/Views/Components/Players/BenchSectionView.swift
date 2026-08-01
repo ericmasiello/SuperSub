@@ -118,7 +118,7 @@ struct BenchSectionView: View {
         players: [
             Player(name: "John Doe", totalPlayTime: 180, status: .benched),
             Player(name: "Jane Smith", totalPlayTime: 240, status: .benched),
-            Player(name: "Mike Johnson", totalPlayTime: 120, status: .benched),
+            Player(name: "Mike Johnson", totalPlayTime: 120, status: .benched)
         ],
         activePlayersCount: 4,
         maxActiveCount: 4,
@@ -145,7 +145,7 @@ struct BenchSectionView: View {
     BenchSectionView(
         players: [
             Player(name: "John Doe", totalPlayTime: 180, status: .benched),
-            Player(name: "Jane Smith", totalPlayTime: 240, status: .benched),
+            Player(name: "Jane Smith", totalPlayTime: 240, status: .benched)
         ],
         activePlayersCount: 2,
         maxActiveCount: 4,
@@ -160,7 +160,7 @@ struct BenchSectionView: View {
     BenchSectionView(
         players: [
             Player(name: "John Doe", totalPlayTime: 180, status: .benched),
-            Player(name: "Jane Smith", totalPlayTime: 240, status: .benched),
+            Player(name: "Jane Smith", totalPlayTime: 240, status: .benched)
         ],
         activePlayersCount: 4,
         maxActiveCount: 4,
@@ -174,7 +174,7 @@ struct BenchSectionView: View {
 #Preview("Single Bench Player") {
     BenchSectionView(
         players: [
-            Player(name: "Solo Benched", totalPlayTime: 60, status: .benched),
+            Player(name: "Solo Benched", totalPlayTime: 60, status: .benched)
         ],
         activePlayersCount: 3,
         maxActiveCount: 4,

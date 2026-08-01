@@ -48,7 +48,7 @@ struct TemporarilyOutSectionView: View {
         players: [
             Player(name: "John Doe", totalPlayTime: 300, status: .temporarilyOut),
             Player(name: "Jane Smith", totalPlayTime: 450, status: .temporarilyOut),
-            Player(name: "Mike Johnson", totalPlayTime: 180, status: .temporarilyOut),
+            Player(name: "Mike Johnson", totalPlayTime: 180, status: .temporarilyOut)
         ],
         onReturnToBench: { player in print("Return: \(player.name)") }
     )
@@ -58,7 +58,7 @@ struct TemporarilyOutSectionView: View {
 #Preview("Single Player") {
     TemporarilyOutSectionView(
         players: [
-            Player(name: "Solo Out", totalPlayTime: 200, status: .temporarilyOut),
+            Player(name: "Solo Out", totalPlayTime: 200, status: .temporarilyOut)
         ],
         onReturnToBench: { _ in }
     )
@@ -71,7 +71,7 @@ struct TemporarilyOutSectionView: View {
             Player(name: "Player 1", totalPlayTime: 100, status: .temporarilyOut),
             Player(name: "Player 2", totalPlayTime: 500, status: .temporarilyOut),
             Player(name: "Player 3", totalPlayTime: 250, status: .temporarilyOut),
-            Player(name: "Player 4", totalPlayTime: 75, status: .temporarilyOut),
+            Player(name: "Player 4", totalPlayTime: 75, status: .temporarilyOut)
         ],
         onReturnToBench: { _ in }
     )
@@ -81,7 +81,7 @@ struct TemporarilyOutSectionView: View {
 #Preview("Zero Play Time") {
     TemporarilyOutSectionView(
         players: [
-            Player(name: "New Player Out", totalPlayTime: 0, status: .temporarilyOut),
+            Player(name: "New Player Out", totalPlayTime: 0, status: .temporarilyOut)
         ],
         onReturnToBench: { _ in }
     )
