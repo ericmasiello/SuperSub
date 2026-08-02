@@ -9,6 +9,13 @@ import Foundation
 @testable import SubTimer
 import Testing
 
+// Serialized: most tests here assert on real elapsed wall-clock time after a
+// `Task.sleep`. Running them in parallel (Swift Testing's default) puts many
+// concurrent sleeps in flight at once, and on a loaded/shared CI runner that
+// inflates actual elapsed time past these tests' tolerances — this suite
+// passed reliably locally but failed intermittently in CI under contention
+// until serialized.
+@Suite(.serialized)
 struct TimerViewModelTests {
     @Test func initialization() async {
         let players = [Player(name: "Player 1"), Player(name: "Player 2")]

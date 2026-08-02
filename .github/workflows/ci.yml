@@ -1,0 +1,69 @@
+name: CI
+
+# Versions pinned deliberately (not "latest") so GitHub rotating its macOS
+# image can't silently flip this red or change what gets tested. Bump these
+# on purpose when adopting a new Xcode release; check what's available on
+# the `macos-26` runner first:
+# https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md
+
+on:
+  pull_request:
+
+env:
+  XCODE_VERSION: "26.5"
+  SIMULATOR_DESTINATION: "platform=iOS Simulator,name=iPhone 17,OS=26.5"
+
+jobs:
+  lint:
+    name: SwiftLint
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: swiftlint lint --strict
+
+  test:
+    name: Unit + UI tests
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: deriveddata-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('SubTimer.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            deriveddata-${{ runner.os }}-${{ env.XCODE_VERSION }}-
+
+      - name: Warm up CoreSimulator for the selected Xcode
+        # Switching to a non-default Xcode via setup-xcode can leave
+        # xcodebuild's destination resolver blind to that Xcode's pre-baked
+        # simulator devices until CoreSimulator has been queried under it at
+        # least once. Cheap, and avoids a flaky "Unable to find a device
+        # matching the provided destination specifier" on a cold runner.
+        run: xcrun simctl list devices available
+
+      - name: Run tests (SubTimerTests + SubTimerUITests)
+        run: |
+          xcodebuild test \
+            -project SubTimer.xcodeproj \
+            -scheme SubTimer \
+            -testPlan SubTimerCI \
+            -destination "${{ env.SIMULATOR_DESTINATION }}"

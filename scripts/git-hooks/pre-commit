@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook: block a commit if any staged Swift file has a SwiftLint
+# violation. This script is checked into the repo, not installed by default
+# (`.git/hooks` isn't version-controlled) — see README.md ("Pre-commit hook")
+# for the one-time activation step.
+
+set -euo pipefail
+
+# Collect staged Swift files that will actually exist after the commit
+# (added/copied/modified/renamed) — skip deleted files.
+staged_swift_files=()
+while IFS= read -r file; do
+  [ -n "$file" ] && staged_swift_files+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR -- '*.swift')
+
+if [ "${#staged_swift_files[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+if ! command -v swiftlint >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+warning: swiftlint is not installed — skipping the pre-commit lint check.
+Install it with `brew install swiftlint` to enable this check locally.
+EOF
+  exit 0
+fi
+
+echo "Running SwiftLint on staged Swift files..."
+
+if ! swiftlint lint --strict --quiet --force-exclude "${staged_swift_files[@]}"; then
+  cat >&2 <<'EOF'
+
+Commit blocked: SwiftLint found violations in your staged changes.
+Run `swiftlint --fix` to autocorrect what it can, then re-stage and commit.
+EOF
+  exit 1
+fi
