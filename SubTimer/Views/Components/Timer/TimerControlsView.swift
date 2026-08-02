@@ -23,6 +23,7 @@ struct TimerControlsView: View {
                 HStack {
                     Image(systemName: isRunning ? "pause.circle.fill" : "play.circle.fill")
                         .font(.system(size: 30))
+                        .accessibilityHidden(true)
                     Text(isRunning ? "Pause" : "Start")
                         .font(.title2)
                         .bold()
@@ -38,6 +39,7 @@ struct TimerControlsView: View {
                 HStack {
                     Image(systemName: "arrow.clockwise.circle.fill")
                         .font(.system(size: 30))
+                        .accessibilityHidden(true)
                     Text("Reset")
                         .font(.title2)
                         .bold()

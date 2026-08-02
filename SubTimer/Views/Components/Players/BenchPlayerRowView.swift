@@ -36,6 +36,7 @@ struct BenchPlayerRowView: View {
                         Image(systemName: "arrow.up.circle.fill")
                             .foregroundStyle(.green)
                             .font(.caption)
+                            .accessibilityLabel("Next Up")
                     }
                 }
                 Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
@@ -61,6 +62,7 @@ struct BenchPlayerRowView: View {
                         .foregroundStyle(.green)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Activate")
             }
         }
         .padding()

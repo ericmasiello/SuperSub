@@ -23,6 +23,7 @@ excluded:
   - SubTimer.xcodeproj
 
 opt_in_rules:
+  - accessibility_label_for_image
   - closure_end_indentation
   - closure_spacing
   - collection_alignment
