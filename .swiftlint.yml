@@ -22,6 +22,14 @@ excluded:
   - .build
   - SubTimer.xcodeproj
 
+# redundant_string_enum_value (on by default) is the mirror image of
+# explicit_enum_raw_value below: it flags raw values that match the case
+# name as omittable, while explicit_enum_raw_value requires every case to
+# have one. We want explicit raw values on persisted enums (see issue #67),
+# so the default rule is disabled in favor of the opt-in one.
+disabled_rules:
+  - redundant_string_enum_value
+
 opt_in_rules:
   - closure_end_indentation
   - closure_spacing
@@ -33,6 +41,7 @@ opt_in_rules:
   - discouraged_optional_boolean
   - empty_count
   - empty_string
+  - explicit_enum_raw_value
   - fallthrough
   - first_where
   - identical_operands

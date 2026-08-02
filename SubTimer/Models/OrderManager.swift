@@ -9,8 +9,8 @@ import Foundation
 import SwiftData
 
 enum PlayerOrderRole: String, Codable {
-    case bench
-    case active
+    case bench = "bench"
+    case active = "active"
 }
 
 @Model

@@ -41,7 +41,7 @@ final class Player {
 }
 
 enum PlayerStatus: String, Codable {
-    case active
-    case benched
-    case temporarilyOut
+    case active = "active"
+    case benched = "benched"
+    case temporarilyOut = "temporarilyOut"
 }
