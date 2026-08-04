@@ -10,7 +10,18 @@ import SwiftUI
 
 @main
 struct SubTimerApp: App {
-    var sharedModelContainer: ModelContainer = {
+    var sharedModelContainer: ModelContainer = Self.makeModelContainer()
+
+    var body: some Scene {
+        WindowGroup {
+            MainTabView()
+        }
+        .modelContainer(sharedModelContainer)
+    }
+
+    // MARK: - Model Container Setup
+
+    private static func makeModelContainer() -> ModelContainer {
         let schema = Schema([
             Player.self,
             AppConfiguration.self,
@@ -36,38 +47,44 @@ struct SubTimerApp: App {
 
             return container
         } catch {
-            // Migration failed - delete the old database and create a new one
             print("ModelContainer creation failed: \(error)")
-            print("Attempting to delete old database and create new one...")
-
-            // Delete the existing database files
-            let url = modelConfiguration.url
-            try? FileManager.default.removeItem(at: url)
-            try? FileManager.default.removeItem(
-                at: url.deletingPathExtension().appendingPathExtension("sqlite-shm")
+            return recoverModelContainer(
+                schema: schema,
+                modelConfiguration: modelConfiguration,
+                isUITesting: isUITesting
             )
-            try? FileManager.default.removeItem(
-                at: url.deletingPathExtension().appendingPathExtension("sqlite-wal")
-            )
+        }
+    }
 
-            // Try creating container again
-            do {
-                let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
-                if isUITesting {
-                    setupTestData(in: container)
-                }
-                return container
-            } catch {
-                fatalError("Could not create ModelContainer even after cleanup: \(error)")
+    /// Deletes the existing database files and retries container creation.
+    /// Called when the initial `ModelContainer` creation fails, most likely
+    /// due to a schema migration that SwiftData couldn't perform in place.
+    private static func recoverModelContainer(
+        schema: Schema,
+        modelConfiguration: ModelConfiguration,
+        isUITesting: Bool
+    ) -> ModelContainer {
+        print("Attempting to delete old database and create new one...")
+
+        // Delete the existing database files
+        let url = modelConfiguration.url
+        try? FileManager.default.removeItem(at: url)
+        try? FileManager.default.removeItem(
+            at: url.deletingPathExtension().appendingPathExtension("sqlite-shm")
+        )
+        try? FileManager.default.removeItem(
+            at: url.deletingPathExtension().appendingPathExtension("sqlite-wal")
+        )
+
+        do {
+            let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+            if isUITesting {
+                setupTestData(in: container)
             }
+            return container
+        } catch {
+            fatalError("Could not create ModelContainer even after cleanup: \(error)")
         }
-    }()
-
-    var body: some Scene {
-        WindowGroup {
-            MainTabView()
-        }
-        .modelContainer(sharedModelContainer)
     }
 
     // MARK: - Test Data Setup
