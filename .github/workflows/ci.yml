@@ -143,6 +143,36 @@ jobs:
           mkdir -p "${{ env.DERIVED_DATA_PATH }}/Build/Products"
           tar -xzf build-products.tar.gz -C "${{ env.DERIVED_DATA_PATH }}/Build/Products"
 
+      - name: Boot the destination simulator
+        id: destination
+        run: |
+          device_name=$(echo "${{ env.SIMULATOR_DESTINATION }}" | sed -n 's/.*name=\([^,]*\).*/\1/p')
+          os_version=$(echo "${{ env.SIMULATOR_DESTINATION }}" | sed -n 's/.*OS=\([^,]*\).*/\1/p')
+          os_key=$(echo "$os_version" | tr '.' '-')
+
+          udid=$(xcrun simctl list devices available -j | jq -r --arg os "$os_key" --arg name "$device_name" '
+            .devices | to_entries[] | select(.key | contains($os)) | .value[] | select(.name == $name) | .udid
+          ' | head -1)
+
+          if [ -z "$udid" ]; then
+            echo "::error::No available simulator matched name=$device_name OS=$os_version" >&2
+            exit 1
+          fi
+
+          # -parallel-testing-enabled clones this device rather than
+          # cold-booting fresh ones. Booting it here first - and blocking
+          # until it's fully up - means the clones start from an
+          # already-warm device instead of racing each other through a
+          # cold boot, which is what triggered "DTServiceHub - Error
+          # resuming pid ... Failed to send signal 19" launch hangs when
+          # this workflow first tried enabling parallel UI testing without
+          # it (multiple simulator clones cold-booting at once is a
+          # documented Xcode 26 / GitHub-hosted-macOS-runner stability
+          # issue, not something specific to this project's tests).
+          xcrun simctl bootstatus "$udid" -b
+
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
       - name: Run tests (${{ matrix.shard }})
         run: |
           only_testing_flags=()
@@ -171,7 +201,7 @@ jobs:
 
           xcodebuild test-without-building \
             -xctestrun "${{ env.DERIVED_DATA_PATH }}/Build/Products/${{ needs.build-for-testing.outputs.xctestrun }}" \
-            -destination "${{ env.SIMULATOR_DESTINATION }}" \
+            -destination "platform=iOS Simulator,id=${{ steps.destination.outputs.udid }}" \
             -resultBundlePath "${{ matrix.shard }}.xcresult" \
             "${only_testing_flags[@]}" \
             "${parallel_flags[@]}"
