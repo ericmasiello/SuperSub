@@ -15,128 +15,167 @@ import WidgetKit
 struct ActiveBenchLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ActiveBenchAttributes.self) { context in
-            VStack(spacing: 12) {
-                VStack(spacing: 4) {
-                    Text("Current Play Time")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            lockScreenView(context: context)
+        } dynamicIsland: { context in
+            dynamicIsland(context: context)
+        }
+    }
 
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        if context.state.isRunning {
-                            Text(context.state.timerRefDate, style: .timer)
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-                        } else {
-                            Text(formatTime(context.state.accumulatedTime))
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-                        }
+    // MARK: - Lock Screen / Banner
 
-                        if let subOut = context.state.subOutPlayerName,
-                            let subIn = context.state.subInPlayerName {
-                            Text("\(subOut) → \(subIn)")
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                .foregroundStyle(Color("AppOrange"))
-                                .lineLimit(1)
-                        }
-                    }
-                }
+    private func lockScreenView(context: ActivityViewContext<ActiveBenchAttributes>) -> some View {
+        VStack(spacing: 12) {
+            timeDisplay(context: context)
+            playerCountsRow(context: context)
+        }
+        .padding()
+        .activityBackgroundTint(Color(uiColor: .systemBackground))
+        .activitySystemActionForegroundColor(Color.primary)
+    }
 
-                HStack(spacing: 16) {
-                    Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
-                        .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "person.3.fill")
-                        Text("\(context.state.activePlayersCount) Active")
-                    }
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "figure.seated")
-                        Text("\(context.state.benchedPlayersCount) Bench")
-                    }
-                }
+    private func timeDisplay(context: ActivityViewContext<ActiveBenchAttributes>) -> some View {
+        VStack(spacing: 4) {
+            Text("Current Play Time")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            }
-            .padding()
-            .activityBackgroundTint(Color(uiColor: .systemBackground))
-            .activitySystemActionForegroundColor(Color.primary)
-        } dynamicIsland: { context in
-            DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    HStack(spacing: 12) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "person.3.fill")
-                            Text("\(context.state.activePlayersCount)")
-                        }
 
-                        HStack(spacing: 4) {
-                            Image(systemName: "figure.seated")
-                            Text("\(context.state.benchedPlayersCount)")
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                if context.state.isRunning {
+                    Text(context.state.timerRefDate, style: .timer)
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+                } else {
+                    Text(formatTime(context.state.accumulatedTime))
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(isOvertime(context.state) ? .red : .primary)
                 }
 
-                DynamicIslandExpandedRegion(.bottom) {
-                    VStack(spacing: 4) {
-                        if context.state.isRunning {
-                            Text(context.state.timerRefDate, style: .timer)
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-                        } else {
-                            Text(formatTime(context.state.accumulatedTime))
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-                        }
-
-                        if let subOut = context.state.subOutPlayerName,
-                            let subIn = context.state.subInPlayerName {
-                            Text("\(subOut) → \(subIn)")
-                                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                .foregroundStyle(Color("AppOrange"))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            } compactLeading: {
-                HStack(spacing: 2) {
-                    Image(systemName: context.state.isRunning ? "play.fill" : "pause.fill")
-                        .font(.caption2)
-                    if context.state.isRunning {
-                        Text(context.state.timerRefDate, style: .timer)
-                            .font(.caption2)
-                            .monospacedDigit()
-                            .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-                    } else {
-                        Text(formatTimeCompact(context.state.accumulatedTime))
-                            .font(.caption2)
-                            .monospacedDigit()
-                            .foregroundStyle(isOvertime(context.state) ? .red : .primary)
-                    }
-                }
-            } compactTrailing: {
                 if let subOut = context.state.subOutPlayerName,
                     let subIn = context.state.subInPlayerName {
                     Text("\(subOut) → \(subIn)")
-                        .font(.system(size: 12))
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
                         .foregroundStyle(Color("AppOrange"))
                         .lineLimit(1)
                 }
-            } minimal: {
-                Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
-                    .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
             }
-            .keylineTint(context.state.isRunning ? .green : Color("AppOrange"))
         }
+    }
+
+    private func playerCountsRow(context: ActivityViewContext<ActiveBenchAttributes>) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
+                .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
+
+            HStack(spacing: 4) {
+                Image(systemName: "person.3.fill")
+                Text("\(context.state.activePlayersCount) Active")
+            }
+
+            HStack(spacing: 4) {
+                Image(systemName: "figure.seated")
+                Text("\(context.state.benchedPlayersCount) Bench")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    // MARK: - Dynamic Island
+
+    private func dynamicIsland(context: ActivityViewContext<ActiveBenchAttributes>) -> DynamicIsland {
+        DynamicIsland {
+            DynamicIslandExpandedRegion(.leading) {
+                expandedLeading(context: context)
+            }
+            DynamicIslandExpandedRegion(.bottom) {
+                expandedBottom(context: context)
+            }
+        } compactLeading: {
+            compactLeading(context: context)
+        } compactTrailing: {
+            compactTrailing(context: context)
+        } minimal: {
+            minimal(context: context)
+        }
+        .keylineTint(context.state.isRunning ? .green : Color("AppOrange"))
+    }
+
+    private func expandedLeading(context: ActivityViewContext<ActiveBenchAttributes>) -> some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 4) {
+                Image(systemName: "person.3.fill")
+                Text("\(context.state.activePlayersCount)")
+            }
+
+            HStack(spacing: 4) {
+                Image(systemName: "figure.seated")
+                Text("\(context.state.benchedPlayersCount)")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    private func expandedBottom(context: ActivityViewContext<ActiveBenchAttributes>) -> some View {
+        VStack(spacing: 4) {
+            if context.state.isRunning {
+                Text(context.state.timerRefDate, style: .timer)
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            } else {
+                Text(formatTime(context.state.accumulatedTime))
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            }
+
+            if let subOut = context.state.subOutPlayerName,
+                let subIn = context.state.subInPlayerName {
+                Text("\(subOut) → \(subIn)")
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color("AppOrange"))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func compactLeading(context: ActivityViewContext<ActiveBenchAttributes>) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: context.state.isRunning ? "play.fill" : "pause.fill")
+                .font(.caption2)
+            if context.state.isRunning {
+                Text(context.state.timerRefDate, style: .timer)
+                    .font(.caption2)
+                    .monospacedDigit()
+                    .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            } else {
+                Text(formatTimeCompact(context.state.accumulatedTime))
+                    .font(.caption2)
+                    .monospacedDigit()
+                    .foregroundStyle(isOvertime(context.state) ? .red : .primary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func compactTrailing(context: ActivityViewContext<ActiveBenchAttributes>) -> some View {
+        if let subOut = context.state.subOutPlayerName,
+            let subIn = context.state.subInPlayerName {
+            Text("\(subOut) → \(subIn)")
+                .font(.system(size: 12))
+                .foregroundStyle(Color("AppOrange"))
+                .lineLimit(1)
+        }
+    }
+
+    private func minimal(context: ActivityViewContext<ActiveBenchAttributes>) -> some View {
+        Image(systemName: context.state.isRunning ? "play.circle.fill" : "pause.circle.fill")
+            .foregroundStyle(context.state.isRunning ? .green : Color("AppOrange"))
     }
 
     // MARK: - Helper Functions
