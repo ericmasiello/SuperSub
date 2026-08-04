@@ -28,45 +28,54 @@ struct BenchPlayerRowView: View {
 
     private var rowContent: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(player.name)
-                        .font(.headline)
-                    if isNextUp && !canActivate {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.caption)
-                            .accessibilityLabel("Next Up")
-                    }
-                }
-                Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-
+            playerInfo
             Spacer()
-
-            Button(action: onTap) {
-                Image(systemName: "ellipsis.circle")
-                    .font(.title2)
-                    .foregroundStyle(.appPurple)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("More")
-
+            moreButton
             if canActivate {
-                Button(action: onActivate) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.green)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Activate")
+                activateButton
             }
         }
         .padding()
         .cornerRadius(8)
+    }
+
+    private var playerInfo: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(player.name)
+                    .font(.headline)
+                if isNextUp && !canActivate {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.caption)
+                        .accessibilityLabel("Next Up")
+                }
+            }
+            Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
+
+    private var moreButton: some View {
+        Button(action: onTap) {
+            Image(systemName: "ellipsis.circle")
+                .font(.title2)
+                .foregroundStyle(.appPurple)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("More")
+    }
+
+    private var activateButton: some View {
+        Button(action: onActivate) {
+            Image(systemName: "plus.circle.fill")
+                .font(.title2)
+                .foregroundStyle(.green)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Activate")
     }
 }
 
