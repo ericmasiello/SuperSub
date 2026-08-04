@@ -20,66 +20,70 @@ struct ActivePlayersSectionView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                Label("Active Players", systemImage: "figure.run")
-                    .font(.title3)
-                    .bold()
-                Spacer()
-                Text("\(players.count)/\(maxActiveCount)")
-                    .foregroundStyle(.secondary)
-            }
+            headerView
 
-            // Content
             if players.isEmpty {
                 emptyStateView
             } else if onReorder != nil {
-                List {
-                    ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
-                        ActivePlayerRowView(
-                            player: player,
-                            isNextToSubOut: isNextToSubOut(index),
-                            onTap: { onPlayerTap(player) }
-                        )
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(
-                            isNextToSubOut(index)
-                                ? RoundedRectangle(cornerRadius: 12).fill(Color.appOrange.opacity(0.1))
-                                : RoundedRectangle(cornerRadius: 12).fill(
-                                    Color(uiColor: .secondarySystemBackground)
-                                )
-                        )
-                    }
-                    .onMove(perform: movePlayer)
-                }
-                .listStyle(.plain)
-                .listRowSpacing(8)
-                .environment(\.editMode, .constant(.active))
-                .frame(height: CGFloat(players.count) * 80)
+                reorderableListView
             } else {
-                LazyVStack(spacing: 8) {
-                    ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
-                        ActivePlayerRowView(
-                            player: player,
-                            isNextToSubOut: isNextToSubOut(index),
-                            onTap: { onPlayerTap(player) }
-                        )
-                        .padding(.horizontal, 4)
-                        .background(
-                            isNextToSubOut(index)
-                                ? RoundedRectangle(cornerRadius: 12).fill(Color.appOrange.opacity(0.1))
-                                : RoundedRectangle(cornerRadius: 12).fill(
-                                    Color(uiColor: .secondarySystemBackground)
-                                )
-                        )
-                    }
-                }
+                staticListView
             }
         }
     }
 
     // MARK: - Helper Views
+
+    private var headerView: some View {
+        HStack {
+            Label("Active Players", systemImage: "figure.run")
+                .font(.title3)
+                .bold()
+            Spacer()
+            Text("\(players.count)/\(maxActiveCount)")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var reorderableListView: some View {
+        List {
+            ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+                playerRow(player: player, index: index)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(rowBackground(index: index))
+            }
+            .onMove(perform: movePlayer)
+        }
+        .listStyle(.plain)
+        .listRowSpacing(8)
+        .environment(\.editMode, .constant(.active))
+        .frame(height: CGFloat(players.count) * 80)
+    }
+
+    private var staticListView: some View {
+        LazyVStack(spacing: 8) {
+            ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+                playerRow(player: player, index: index)
+                    .padding(.horizontal, 4)
+                    .background(rowBackground(index: index))
+            }
+        }
+    }
+
+    private func playerRow(player: Player, index: Int) -> some View {
+        ActivePlayerRowView(
+            player: player,
+            isNextToSubOut: isNextToSubOut(index),
+            onTap: { onPlayerTap(player) }
+        )
+    }
+
+    private func rowBackground(index: Int) -> some View {
+        isNextToSubOut(index)
+            ? RoundedRectangle(cornerRadius: 12).fill(Color.appOrange.opacity(0.1))
+            : RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground))
+    }
 
     private var emptyStateView: some View {
         Text("No active players. Tap a player on the bench to activate.")

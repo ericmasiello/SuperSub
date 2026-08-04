@@ -236,61 +236,76 @@ struct TimerView: View {
 
     private var mainTimerView: some View {
         ScrollViewReader { scrollProxy in
-            ScrollView {
-                VStack(spacing: 24) {
-                    timerControlsSection
-                        .id("timerControls")
-                    preferredTimeDisplay
-                        .background(
-                            GeometryReader { geo in
-                                Color.clear.preference(
-                                    key: TimerVisibilityPreferenceKey.self,
-                                    value: geo.frame(in: .named("timerScroll"))
-                                )
-                            }
-                        )
-                    activePlayersSection
-                    benchSection
-                    if !temporarilyOutPlayers.isEmpty {
-                        temporarilyOutSection
+            scrollableContent(scrollProxy: scrollProxy)
+        }
+    }
+
+    private func scrollableContent(scrollProxy: ScrollViewProxy) -> some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                timerControlsSection
+                    .id("timerControls")
+                preferredTimeDisplay
+                    .background(timerVisibilityTracker)
+                activePlayersSection
+                benchSection
+                if !temporarilyOutPlayers.isEmpty {
+                    temporarilyOutSection
+                }
+            }
+            .padding()
+        }
+        .coordinateSpace(name: "timerScroll")
+        .onPreferenceChange(TimerVisibilityPreferenceKey.self, perform: handleTimerVisibilityChange)
+        .safeAreaInset(edge: .top) {
+            compactTimerBar(scrollProxy: scrollProxy)
+        }
+        .safeAreaInset(edge: .bottom) {
+            pinnedSubstituteButton
+                .opacity(showPinnedButton ? 1 : 0)
+                .offset(y: showPinnedButton ? 0 : 40)
+        }
+        .onAppear(perform: animatePinnedButtonIn)
+    }
+
+    private var timerVisibilityTracker: some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: TimerVisibilityPreferenceKey.self,
+                value: geo.frame(in: .named("timerScroll"))
+            )
+        }
+    }
+
+    private func handleTimerVisibilityChange(_ frame: CGRect) {
+        let isVisible = frame.maxY > 0
+        if showCompactTimer != !isVisible {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                showCompactTimer = !isVisible
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func compactTimerBar(scrollProxy: ScrollViewProxy) -> some View {
+        if showCompactTimer {
+            CompactTimerBarView(
+                currentPlayDuration: timerViewModel?.elapsedTime ?? 0,
+                preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
+                onTap: {
+                    withAnimation {
+                        scrollProxy.scrollTo("timerControls", anchor: .top)
                     }
                 }
-                .padding()
-            }
-            .coordinateSpace(name: "timerScroll")
-            .onPreferenceChange(TimerVisibilityPreferenceKey.self) { frame in
-                let isVisible = frame.maxY > 0
-                if showCompactTimer != !isVisible {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        showCompactTimer = !isVisible
-                    }
-                }
-            }
-            .safeAreaInset(edge: .top) {
-                if showCompactTimer {
-                    CompactTimerBarView(
-                        currentPlayDuration: timerViewModel?.elapsedTime ?? 0,
-                        preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
-                        onTap: {
-                            withAnimation {
-                                scrollProxy.scrollTo("timerControls", anchor: .top)
-                            }
-                        }
-                    )
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                pinnedSubstituteButton
-                    .opacity(showPinnedButton ? 1 : 0)
-                    .offset(y: showPinnedButton ? 0 : 40)
-            }
-            .onAppear {
-                guard !showPinnedButton else { return }
-                withAnimation(.easeOut(duration: 0.45).delay(0.15)) {
-                    showPinnedButton = true
-                }
-            }
+            )
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    private func animatePinnedButtonIn() {
+        guard !showPinnedButton else { return }
+        withAnimation(.easeOut(duration: 0.45).delay(0.15)) {
+            showPinnedButton = true
         }
     }
 
@@ -711,12 +726,11 @@ extension TimerView {
         .modelContainer(for: [Player.self, AppConfiguration.self, Session.self], inMemory: true)
 }
 
-#Preview("Main Timer View") {
-    // Preview providers are compile-time-only and never execute in a shipped
-    // build; the throwing `#Preview` macro overload requires a `@ViewBuilder`
-    // closure, which disallows the explicit `return` below, so `try!` (not
-    // `try?`/do-catch) is the only option that keeps this preview's original
-    // structure intact.
+/// Preview providers are compile-time-only and never execute in a shipped
+/// build, so a failed `ModelContainer` creation here can only mean a bug in
+/// this preview's setup - `try!` surfaces that immediately instead of
+/// silently producing a broken preview.
+private func makeMainTimerPreviewContainer() -> ModelContainer {
     // swiftlint:disable:next force_try
     let container = try! ModelContainer(
         for: Player.self, AppConfiguration.self, Session.self,
@@ -763,6 +777,10 @@ extension TimerView {
     context.insert(player5)
     context.insert(player6)
 
-    return TimerView()
-        .modelContainer(container)
+    return container
+}
+
+#Preview("Main Timer View") {
+    TimerView()
+        .modelContainer(makeMainTimerPreviewContainer())
 }

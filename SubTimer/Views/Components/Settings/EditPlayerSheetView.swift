@@ -43,44 +43,9 @@ struct EditPlayerSheetView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Player Information") {
-                    TextField("Name", text: $editedName)
-                        .textInputAutocapitalization(.words)
-                }
-
-                Section("Status") {
-                    Picker("Status", selection: $editedStatus) {
-                        Text("On Bench").tag(PlayerStatus.benched)
-                        Text("Currently Playing").tag(PlayerStatus.active)
-                        Text("Temporarily Out").tag(PlayerStatus.temporarilyOut)
-                    }
-                    .pickerStyle(.inline)
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Current Play Duration:")
-                            Spacer()
-                            Text(TimeFormatter.format(player.currentPlayDuration))
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Total Play Time:")
-                            Spacer()
-                            Text(TimeFormatter.format(player.totalPlayTime))
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Created:")
-                            Spacer()
-                            Text(player.createdDate, format: .dateTime.month().day().year())
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Text("Statistics")
-                }
+                nameSection
+                statusSection
+                statisticsSection
             }
             .navigationTitle("Edit Player")
             .navigationBarTitleDisplayMode(.inline)
@@ -97,6 +62,53 @@ struct EditPlayerSheetView: View {
                     .disabled(!isNameValid)
                 }
             }
+        }
+    }
+
+    // MARK: - Form Sections
+
+    private var nameSection: some View {
+        Section("Player Information") {
+            TextField("Name", text: $editedName)
+                .textInputAutocapitalization(.words)
+        }
+    }
+
+    private var statusSection: some View {
+        Section("Status") {
+            Picker("Status", selection: $editedStatus) {
+                Text("On Bench").tag(PlayerStatus.benched)
+                Text("Currently Playing").tag(PlayerStatus.active)
+                Text("Temporarily Out").tag(PlayerStatus.temporarilyOut)
+            }
+            .pickerStyle(.inline)
+        }
+    }
+
+    private var statisticsSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Current Play Duration:")
+                    Spacer()
+                    Text(TimeFormatter.format(player.currentPlayDuration))
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Text("Total Play Time:")
+                    Spacer()
+                    Text(TimeFormatter.format(player.totalPlayTime))
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Text("Created:")
+                    Spacer()
+                    Text(player.createdDate, format: .dateTime.month().day().year())
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Statistics")
         }
     }
 
