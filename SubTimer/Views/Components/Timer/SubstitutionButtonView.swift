@@ -21,6 +21,7 @@ struct SubstitutionButtonView: View {
             HStack {
                 Image(systemName: "arrow.left.arrow.right.circle.fill")
                     .font(.headline)
+                    .accessibilityHidden(true)
                 Text("Substitute")
                     .font(.headline)
                     .bold()

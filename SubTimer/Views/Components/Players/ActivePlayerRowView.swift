@@ -27,6 +27,7 @@ struct ActivePlayerRowView: View {
                         Image(systemName: "arrow.down.circle.fill")
                             .foregroundStyle(.appOrange)
                             .font(.caption)
+                            .accessibilityLabel("Next to Sub Out")
                     }
                 }
                 Text(TimeFormatter.format(player.currentPlayDuration))

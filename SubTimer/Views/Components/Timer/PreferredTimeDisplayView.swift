@@ -46,6 +46,7 @@ struct PreferredTimeDisplayView: View {
             if hasPreferredTime {
                 HStack(spacing: 4) {
                     Image(systemName: isOverTime ? "exclamationmark.triangle.fill" : "clock")
+                        .accessibilityHidden(true)
                     Text(timeRemainingText)
                 }
                 .font(.subheadline)
