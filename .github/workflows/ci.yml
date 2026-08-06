@@ -60,15 +60,9 @@ jobs:
         # matching the provided destination specifier" on a cold runner.
         run: xcrun simctl list devices available
 
-      # No DerivedData cache: it was tried and reverted. Once the cache
-      # actually hit (its key only hashes project.pbxproj, not source
-      # files, so it never invalidated on ordinary source edits),
-      # PlayerComponentsUITests.testPlayerRowStatusTransitionFlow started
-      # failing reproducibly (3 real CI runs in a row) - consistent with
-      # Xcode's incremental build getting confused by a restored
-      # DerivedData whose file mtimes don't reflect real edit history, a
-      # known-flaky pattern for caching DerivedData across CI runs in
-      # general, not just a fixable cache-key problem. Every build here is
+      # No DerivedData cache - see ADR-0009. One was tried and reverted;
+      # its key only hashed project.pbxproj, not source files, so it never
+      # invalidated on ordinary source edits. Every build here is
       # deliberately cold; it's already ~1-2 minutes measured on #72's real
       # PR runs, so the cache wasn't buying enough to justify that risk.
 
