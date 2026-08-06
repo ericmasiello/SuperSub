@@ -70,10 +70,11 @@ Every pull request runs the following GitHub Actions checks, defined in
   shard runs its own classes serially rather than also parallelizing
   within itself via simulator clones.
 
-All jobs pin the runner image, Xcode version, and (for the test jobs)
-simulator OS so the pass/fail signal doesn't silently drift as GitHub
-updates its macOS images. If a job starts failing only in CI, check whether
-the pinned versions are still available on the runner before assuming the
+All jobs pin the runner image and Xcode version, and every job that builds
+or runs tests also pins the simulator OS, so the pass/fail signal doesn't
+silently drift as GitHub updates its macOS images. If a job starts failing
+only in CI, check whether the pinned versions are still available on the
+runner before assuming the
 code regressed.
 
 ## Running tests from the command line
