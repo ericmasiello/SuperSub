@@ -36,13 +36,14 @@ class TimerViewModel {
         timerStartDate = Date()
         elapsedTime = computeElapsedTime()
 
-        displayTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
             self.elapsedTime = self.computeElapsedTime()
             self.onTimerTick?()
         }
+        displayTimer = timer
         // ensures timer keeps counting even when scrolling
-        RunLoop.current.add(displayTimer!, forMode: .common)
+        RunLoop.current.add(timer, forMode: .common)
     }
 
     func pauseTimer() {

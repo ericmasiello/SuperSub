@@ -225,15 +225,23 @@ struct ActiveBenchLiveActivity: Widget {
 }
 
 // MARK: - Previews
+//
+// The preview sample data below lives on `ActiveBenchLiveActivity` (rather
+// than as extensions on `ActiveBenchAttributes`/`ContentState`, as a
+// `fileprivate` member would suggest) so it can be `private` and still be
+// reachable from the `#Preview` macros: those macros expand into
+// declarations nested inside the `extension ActiveBenchLiveActivity` block
+// below, which — being another extension of the *same* type in this file —
+// has access to `private` members declared in the first one. A member
+// `private` to `ActiveBenchAttributes` or `ContentState` would not be
+// visible from that expansion, since it's a different type.
 
-extension ActiveBenchAttributes {
-    fileprivate static var preview: ActiveBenchAttributes {
+extension ActiveBenchLiveActivity {
+    private static var previewAttributes: ActiveBenchAttributes {
         ActiveBenchAttributes(sessionName: "Practice Session")
     }
-}
 
-extension ActiveBenchAttributes.ContentState {
-    fileprivate static var running: ActiveBenchAttributes.ContentState {
+    private static var runningState: ActiveBenchAttributes.ContentState {
         ActiveBenchAttributes.ContentState(
             isRunning: true,
             timerStartDate: Date().addingTimeInterval(-120),
@@ -246,7 +254,7 @@ extension ActiveBenchAttributes.ContentState {
         )
     }
 
-    fileprivate static var paused: ActiveBenchAttributes.ContentState {
+    private static var pausedState: ActiveBenchAttributes.ContentState {
         ActiveBenchAttributes.ContentState(
             isRunning: false,
             timerStartDate: Date(),
@@ -259,7 +267,7 @@ extension ActiveBenchAttributes.ContentState {
         )
     }
 
-    fileprivate static var overtime: ActiveBenchAttributes.ContentState {
+    private static var overtimeState: ActiveBenchAttributes.ContentState {
         ActiveBenchAttributes.ContentState(
             isRunning: true,
             timerStartDate: Date().addingTimeInterval(-240),
@@ -273,34 +281,36 @@ extension ActiveBenchAttributes.ContentState {
     }
 }
 
-#Preview("Notification", as: .content, using: ActiveBenchAttributes.preview) {
-    ActiveBenchLiveActivity()
-} contentStates: {
-    ActiveBenchAttributes.ContentState.running
-    ActiveBenchAttributes.ContentState.paused
-    ActiveBenchAttributes.ContentState.overtime
-}
+extension ActiveBenchLiveActivity {
+    #Preview("Notification", as: .content, using: previewAttributes) {
+        ActiveBenchLiveActivity()
+    } contentStates: {
+        runningState
+        pausedState
+        overtimeState
+    }
 
-#Preview("Dynamic Island Expanded", as: .dynamicIsland(.expanded), using: ActiveBenchAttributes.preview) {
-    ActiveBenchLiveActivity()
-} contentStates: {
-    ActiveBenchAttributes.ContentState.running
-    ActiveBenchAttributes.ContentState.paused
-    ActiveBenchAttributes.ContentState.overtime
-}
+    #Preview("Dynamic Island Expanded", as: .dynamicIsland(.expanded), using: previewAttributes) {
+        ActiveBenchLiveActivity()
+    } contentStates: {
+        runningState
+        pausedState
+        overtimeState
+    }
 
-#Preview("Dynamic Island Compact", as: .dynamicIsland(.compact), using: ActiveBenchAttributes.preview) {
-    ActiveBenchLiveActivity()
-} contentStates: {
-    ActiveBenchAttributes.ContentState.running
-    ActiveBenchAttributes.ContentState.paused
-    ActiveBenchAttributes.ContentState.overtime
-}
+    #Preview("Dynamic Island Compact", as: .dynamicIsland(.compact), using: previewAttributes) {
+        ActiveBenchLiveActivity()
+    } contentStates: {
+        runningState
+        pausedState
+        overtimeState
+    }
 
-#Preview("Dynamic Island Minimal", as: .dynamicIsland(.minimal), using: ActiveBenchAttributes.preview) {
-    ActiveBenchLiveActivity()
-} contentStates: {
-    ActiveBenchAttributes.ContentState.running
-    ActiveBenchAttributes.ContentState.paused
-    ActiveBenchAttributes.ContentState.overtime
+    #Preview("Dynamic Island Minimal", as: .dynamicIsland(.minimal), using: previewAttributes) {
+        ActiveBenchLiveActivity()
+    } contentStates: {
+        runningState
+        pausedState
+        overtimeState
+    }
 }

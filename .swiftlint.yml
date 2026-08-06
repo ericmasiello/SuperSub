@@ -46,7 +46,9 @@ opt_in_rules:
   - explicit_enum_raw_value
   - fallthrough
   - first_where
+  - force_unwrapping
   - identical_operands
+  - implicitly_unwrapped_optional
   - indentation_width
   - joined_default_parameter
   - last_where
@@ -61,6 +63,7 @@ opt_in_rules:
   - redundant_type_annotation
   - sorted_first_last
   - sorted_imports
+  - strict_fileprivate
   - toggle_bool
   - unavailable_function
   - unneeded_parentheses_in_closure_argument

@@ -21,6 +21,11 @@
 import XCTest
 
 final class PlayerComponentsUITests: XCTestCase {
+    // Standard XCTest UI-test scaffolding: `app` is always assigned in
+    // `setUpWithError` before any test method runs, so the implicit unwrap
+    // never actually fires. Rewriting this to an `Optional` with unwrapping
+    // at every use site would only add noise to idiomatic test boilerplate.
+    // swiftlint:disable:next implicitly_unwrapped_optional
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
