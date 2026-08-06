@@ -13,6 +13,15 @@ on:
     # re-triggers this workflow immediately, without requiring a new commit.
     types: [opened, synchronize, reopened, labeled]
 
+# Without this, every push (or label) to a PR queues a brand-new set of 6
+# macOS jobs without canceling whatever this workflow already queued/started
+# for that same PR - on an account with a limited macOS-runner concurrency
+# quota, that backlog is what makes later pushes sit queued behind a run
+# that's testing an already-superseded commit.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 env:
   XCODE_VERSION: "26.5"
   SIMULATOR_DESTINATION: "platform=iOS Simulator,name=iPhone 17,OS=26.5"
