@@ -52,18 +52,6 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
-      - name: Cache DerivedData
-        # Must match the -derivedDataPath passed to build-for-testing below
-        # (a workspace-relative path, not Xcode's default
-        # ~/Library/Developer/Xcode/DerivedData) so this actually caches
-        # what xcodebuild writes, rather than a directory it never touches.
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.DERIVED_DATA_PATH }}
-          key: deriveddata-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('SubTimer.xcodeproj/project.pbxproj') }}
-          restore-keys: |
-            deriveddata-${{ runner.os }}-${{ env.XCODE_VERSION }}-
-
       - name: Warm up CoreSimulator for the selected Xcode
         # Switching to a non-default Xcode via setup-xcode can leave
         # xcodebuild's destination resolver blind to that Xcode's pre-baked
@@ -72,15 +60,17 @@ jobs:
         # matching the provided destination specifier" on a cold runner.
         run: xcrun simctl list devices available
 
-      - name: Remove stale .xctestrun from cached DerivedData
-        # Build/Products can carry over a .xctestrun from a previous cache
-        # hit (see the DerivedData cache above). If Xcode ever names the
-        # generated file differently (new Xcode version, scheme/test-plan
-        # rename), a stale one left here would make the "Locate" step below
-        # match more than one file.
-        run: |
-          mkdir -p "${{ env.DERIVED_DATA_PATH }}/Build/Products"
-          find "${{ env.DERIVED_DATA_PATH }}/Build/Products" -maxdepth 1 -name '*.xctestrun' -delete
+      # No DerivedData cache: it was tried and reverted. Once the cache
+      # actually hit (its key only hashes project.pbxproj, not source
+      # files, so it never invalidated on ordinary source edits),
+      # PlayerComponentsUITests.testPlayerRowStatusTransitionFlow started
+      # failing reproducibly (3 real CI runs in a row) - consistent with
+      # Xcode's incremental build getting confused by a restored
+      # DerivedData whose file mtimes don't reflect real edit history, a
+      # known-flaky pattern for caching DerivedData across CI runs in
+      # general, not just a fixable cache-key problem. Every build here is
+      # deliberately cold; it's already ~1-2 minutes measured on #72's real
+      # PR runs, so the cache wasn't buying enough to justify that risk.
 
       - name: Build for testing (SubTimerTests + SubTimerUITests)
         run: |
