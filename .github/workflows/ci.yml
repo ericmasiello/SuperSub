@@ -72,6 +72,16 @@ jobs:
         # matching the provided destination specifier" on a cold runner.
         run: xcrun simctl list devices available
 
+      - name: Remove stale .xctestrun from cached DerivedData
+        # Build/Products can carry over a .xctestrun from a previous cache
+        # hit (see the DerivedData cache above). If Xcode ever names the
+        # generated file differently (new Xcode version, scheme/test-plan
+        # rename), a stale one left here would make the "Locate" step below
+        # match more than one file.
+        run: |
+          mkdir -p "${{ env.DERIVED_DATA_PATH }}/Build/Products"
+          find "${{ env.DERIVED_DATA_PATH }}/Build/Products" -maxdepth 1 -name '*.xctestrun' -delete
+
       - name: Build for testing (SubTimerTests + SubTimerUITests)
         run: |
           xcodebuild build-for-testing \
@@ -84,12 +94,14 @@ jobs:
       - name: Locate the generated .xctestrun
         id: locate-xctestrun
         run: |
-          xctestrun_path=$(find "${{ env.DERIVED_DATA_PATH }}/Build/Products" -maxdepth 1 -name '*.xctestrun')
-          if [ -z "$xctestrun_path" ]; then
-            echo "::error::No .xctestrun file found under Build/Products" >&2
+          matches=$(find "${{ env.DERIVED_DATA_PATH }}/Build/Products" -maxdepth 1 -name '*.xctestrun')
+          match_count=$(printf '%s\n' "$matches" | grep -c . || true)
+          if [ "$match_count" -ne 1 ]; then
+            echo "::error::Expected exactly one .xctestrun under Build/Products, found $match_count" >&2
+            printf '%s\n' "$matches" >&2
             exit 1
           fi
-          echo "name=$(basename "$xctestrun_path")" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$matches")" >> "$GITHUB_OUTPUT"
 
       - name: Package built products for the test shards
         # actions/upload-artifact's own zip/unzip roundtrip is a known
