@@ -51,15 +51,26 @@ lets the commit through rather than blocking on missing tooling.
 
 ## Continuous integration
 
-Every pull request runs two GitHub Actions checks, defined in
+Every pull request runs the following GitHub Actions checks, defined in
 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml):
 
 - **Lint** — runs `swiftlint lint --strict` against the same scope as the
   local command above.
-- **Test** — runs `SubTimerTests` and `SubTimerUITests` via `xcodebuild test`
-  against the `SubTimerCI` test plan (see below).
+- **Build for testing** — builds `SubTimerTests` + `SubTimerUITests` once
+  against the `SubTimerCI` test plan (see below) via
+  `xcodebuild build-for-testing`, and uploads the built products +
+  generated `.xctestrun` as an artifact for the shards below.
+- **Test / unit, Test / ui-player-launch, Test / ui-settings, Test /
+  ui-timer** — a 4-way matrix that each downloads that artifact and runs
+  `xcodebuild test-without-building -only-testing:...` against its own
+  slice of `SubTimerTests`/`SubTimerUITests`, instead of every job
+  rebuilding from scratch. These run concurrently on separate runners, so
+  build-once + sharding keeps the total PR-blocking time from being the
+  serial sum of every test class on one VM. See ADR-0008 for why each
+  shard runs its own classes serially rather than also parallelizing
+  within itself via simulator clones.
 
-Both jobs pin the runner image, Xcode version, and (for the test job)
+All jobs pin the runner image, Xcode version, and (for the test jobs)
 simulator OS so the pass/fail signal doesn't silently drift as GitHub
 updates its macOS images. If a job starts failing only in CI, check whether
 the pinned versions are still available on the runner before assuming the

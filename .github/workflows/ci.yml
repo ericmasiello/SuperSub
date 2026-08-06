@@ -101,6 +101,14 @@ jobs:
           path: build-products.tar.gz
           retention-days: 1
 
+  # Each shard below only runs its own classes serially within itself
+  # (no -parallel-testing-enabled). Simulator-clone parallel testing was
+  # attempted here and reliably hung on this exact macos-26/Xcode 26.5
+  # combination - see ADR-0008 for the evidence and why it's deferred
+  # rather than worked around. The wall-time win this ticket is after
+  # still holds without it: these 4 shards run as a matrix, concurrently
+  # on separate runners, so the PR-blocking time is `build + slowest
+  # shard`, not the old single job's serial sum of all of them.
   test:
     name: Test / ${{ matrix.shard }}
     needs: build-for-testing
@@ -111,19 +119,15 @@ jobs:
         include:
           - shard: unit
             only_testing: "SubTimerTests"
-            parallel: false
           - shard: ui-player-launch
             only_testing: >-
               SubTimerUITests/PlayerComponentsUITests
               SubTimerUITests/SubTimerUITests
               SubTimerUITests/SubTimerUITestsLaunchTests
-            parallel: true
           - shard: ui-settings
             only_testing: "SubTimerUITests/SettingsViewUITests"
-            parallel: true
           - shard: ui-timer
             only_testing: "SubTimerUITests/TimerViewUITests"
-            parallel: true
     steps:
       - name: Select Xcode ${{ env.XCODE_VERSION }}
         uses: maxim-lobanov/setup-xcode@v1
@@ -143,36 +147,6 @@ jobs:
           mkdir -p "${{ env.DERIVED_DATA_PATH }}/Build/Products"
           tar -xzf build-products.tar.gz -C "${{ env.DERIVED_DATA_PATH }}/Build/Products"
 
-      - name: Boot the destination simulator
-        id: destination
-        run: |
-          device_name=$(echo "${{ env.SIMULATOR_DESTINATION }}" | sed -n 's/.*name=\([^,]*\).*/\1/p')
-          os_version=$(echo "${{ env.SIMULATOR_DESTINATION }}" | sed -n 's/.*OS=\([^,]*\).*/\1/p')
-          os_key=$(echo "$os_version" | tr '.' '-')
-
-          udid=$(xcrun simctl list devices available -j | jq -r --arg os "$os_key" --arg name "$device_name" '
-            .devices | to_entries[] | select(.key | contains($os)) | .value[] | select(.name == $name) | .udid
-          ' | head -1)
-
-          if [ -z "$udid" ]; then
-            echo "::error::No available simulator matched name=$device_name OS=$os_version" >&2
-            exit 1
-          fi
-
-          # -parallel-testing-enabled clones this device rather than
-          # cold-booting fresh ones. Booting it here first - and blocking
-          # until it's fully up - means the clones start from an
-          # already-warm device instead of racing each other through a
-          # cold boot, which is what triggered "DTServiceHub - Error
-          # resuming pid ... Failed to send signal 19" launch hangs when
-          # this workflow first tried enabling parallel UI testing without
-          # it (multiple simulator clones cold-booting at once is a
-          # documented Xcode 26 / GitHub-hosted-macOS-runner stability
-          # issue, not something specific to this project's tests).
-          xcrun simctl bootstatus "$udid" -b
-
-          echo "udid=$udid" >> "$GITHUB_OUTPUT"
-
       - name: Run tests (${{ matrix.shard }})
         run: |
           only_testing_flags=()
@@ -180,31 +154,11 @@ jobs:
             only_testing_flags+=("-only-testing:$target")
           done
 
-          parallel_flags=()
-          if [ "${{ matrix.parallel }}" = "true" ]; then
-            # Each UI shard's classes run concurrently across simulator
-            # clones. GitHub's macos-26 runner has only 3 vCPUs
-            # (docs.github.com/en/actions/reference/runners/github-hosted-runners),
-            # and #49 already proved this project's tests can flake under
-            # CPU contention on this exact runner tier: wall-clock-sensitive
-            # assertions inflated past their tolerance once enough ran at
-            # once concurrently. Requesting 2 concurrent simulator
-            # destinations, not 3, deliberately leaves a core of headroom
-            # for xcodebuild/simctl overhead instead of saturating every
-            # vCPU with simulator clones and reintroducing that flakiness
-            # class here.
-            parallel_flags+=(
-              "-parallel-testing-enabled" "YES"
-              "-maximum-concurrent-test-simulator-destinations" "2"
-            )
-          fi
-
           xcodebuild test-without-building \
             -xctestrun "${{ env.DERIVED_DATA_PATH }}/Build/Products/${{ needs.build-for-testing.outputs.xctestrun }}" \
-            -destination "platform=iOS Simulator,id=${{ steps.destination.outputs.udid }}" \
+            -destination "${{ env.SIMULATOR_DESTINATION }}" \
             -resultBundlePath "${{ matrix.shard }}.xcresult" \
-            "${only_testing_flags[@]}" \
-            "${parallel_flags[@]}"
+            "${only_testing_flags[@]}"
 
       - name: Upload result bundle on failure
         if: failure()
