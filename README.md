@@ -70,6 +70,23 @@ Every pull request runs the following GitHub Actions checks, defined in
   shard runs its own classes serially rather than also parallelizing
   within itself via simulator clones.
 
+### Performance test tiering
+
+The `ui-player-launch` shard's 3 XCTest `measure{}` tests
+(`PlayerComponentsUITests.testPlayerRowsRenderPerformance`,
+`PlayerComponentsUITests.testScrollingPerformance`, and
+`SubTimerUITests.testLaunchPerformance`) are excluded by default via
+`-skip-testing:`. Repeated-iteration timing measurement is inherently slow
+and signals "did it get slower", not "did it break", so it isn't worth
+paying on every PR push.
+
+Apply the `test-ui-performance` label to a PR to run the full suite,
+including these tests, on its next check. Since the workflow's
+`pull_request` trigger includes `labeled` (in addition to the default
+`opened`/`synchronize`/`reopened`), applying the label re-triggers the
+check immediately, without requiring a new commit. Removing the label
+reverts subsequent triggers to the default (fast) tier.
+
 All jobs pin the runner image and Xcode version, and every job that builds
 or runs tests also pins the simulator OS, so the pass/fail signal doesn't
 silently drift as GitHub updates its macOS images. If a job starts failing

@@ -8,11 +8,16 @@ name: CI
 
 on:
   pull_request:
+    # Default types are [opened, synchronize, reopened]. `labeled` is added
+    # so applying the `test-ui-performance` label (see the `test` job below)
+    # re-triggers this workflow immediately, without requiring a new commit.
+    types: [opened, synchronize, reopened, labeled]
 
 env:
   XCODE_VERSION: "26.5"
   SIMULATOR_DESTINATION: "platform=iOS Simulator,name=iPhone 17,OS=26.5"
   DERIVED_DATA_PATH: DerivedData
+  PERF_TEST_LABEL: "test-ui-performance"
 
 jobs:
   lint:
@@ -124,6 +129,14 @@ jobs:
               SubTimerUITests/PlayerComponentsUITests
               SubTimerUITests/SubTimerUITests
               SubTimerUITests/SubTimerUITestsLaunchTests
+            # These 3 XCTest `measure{}` tests are excluded by default -
+            # repeated-iteration timing measurement is inherently slow, and
+            # they signal "did it get slower", not "did it break". Apply the
+            # `test-ui-performance` label to a PR to run them too.
+            perf_testing: >-
+              SubTimerUITests/PlayerComponentsUITests/testPlayerRowsRenderPerformance
+              SubTimerUITests/PlayerComponentsUITests/testScrollingPerformance
+              SubTimerUITests/SubTimerUITests/testLaunchPerformance
           - shard: ui-settings
             only_testing: "SubTimerUITests/SettingsViewUITests"
           - shard: ui-timer
@@ -148,17 +161,33 @@ jobs:
           tar -xzf build-products.tar.gz -C "${{ env.DERIVED_DATA_PATH }}/Build/Products"
 
       - name: Run tests (${{ matrix.shard }})
+        env:
+          # `github.event.pull_request.labels` always reflects the PR's
+          # current label set, regardless of which trigger type fired this
+          # run - so a label removal (not itself a trigger, see
+          # `on.pull_request.types` above) still reverts to the fast tier on
+          # the *next* trigger, without needing `unlabeled` added to the
+          # trigger types.
+          HAS_PERF_LABEL: ${{ contains(github.event.pull_request.labels.*.name, env.PERF_TEST_LABEL) }}
         run: |
           only_testing_flags=()
           for target in ${{ matrix.only_testing }}; do
             only_testing_flags+=("-only-testing:$target")
           done
 
+          skip_testing_flags=()
+          if [ "$HAS_PERF_LABEL" != "true" ]; then
+            for target in ${{ matrix.perf_testing }}; do
+              skip_testing_flags+=("-skip-testing:$target")
+            done
+          fi
+
           xcodebuild test-without-building \
             -xctestrun "${{ env.DERIVED_DATA_PATH }}/Build/Products/${{ needs.build-for-testing.outputs.xctestrun }}" \
             -destination "${{ env.SIMULATOR_DESTINATION }}" \
             -resultBundlePath "${{ matrix.shard }}.xcresult" \
-            "${only_testing_flags[@]}"
+            "${only_testing_flags[@]}" \
+            "${skip_testing_flags[@]}"
 
       - name: Upload result bundle on failure
         if: failure()
