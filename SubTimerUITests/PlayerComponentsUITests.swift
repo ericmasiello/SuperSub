@@ -74,11 +74,18 @@ final class PlayerComponentsUITests: XCTestCase {
     }
 
     /// Temporarily-out rows render in a `LazyVStack`, not a `List`, so
-    /// there's no row-level cell to query. Its only interactive element -
-    /// "Return to Bench" - has a stable, inferred accessibility label, so
-    /// it's matched directly.
+    /// there's no row-level cell to query. Matches any such button without
+    /// caring which player - each one's real label is "Return <name> to
+    /// Bench" (see `TemporarilyOutPlayerRowView`); use
+    /// `returnToBenchButton(for:)` when that distinction matters.
     private func returnToBenchButtons() -> XCUIElementQuery {
-        app.buttons.matching(NSPredicate(format: "label == 'Return to Bench'"))
+        app.buttons.matching(NSPredicate(format: "label CONTAINS 'to Bench'"))
+    }
+
+    /// The specific player's button, so a fixture player who's already
+    /// temporarily out (e.g. the seeded default) can't be picked instead.
+    private func returnToBenchButton(for name: String) -> XCUIElement {
+        app.buttons["Return \(name) to Bench"]
     }
 
     /// `TemporarilyOutSectionView` lays out its rows in a `LazyVStack`
@@ -327,7 +334,9 @@ final class PlayerComponentsUITests: XCTestCase {
         }
 
         XCTContext.runActivity(named: "Returning a temporarily out player moves them back to the bench") { _ in
-            let returnButton = returnToBenchButtons().firstMatch
+            // Not returnToBenchButtons().firstMatch: the seeded fixture
+            // already has another player temporarily out too.
+            let returnButton = returnToBenchButton(for: transitionedPlayerName)
             guard scrollUntilVisible(returnButton) else {
                 XCTFail("Return to Bench button should be available for a temporarily out player")
                 return

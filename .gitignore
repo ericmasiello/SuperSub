@@ -37,3 +37,7 @@ fastlane/test_output
 
 # OpenCode
 .opencode/
+
+# Agent PR-feedback scratch state (address-pr-feedback skill) - local
+# bookkeeping only, never meant to be committed.
+.scratch/

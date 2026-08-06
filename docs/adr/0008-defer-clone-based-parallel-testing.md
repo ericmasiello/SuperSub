@@ -1,0 +1,9 @@
+# Clone-based parallel testing is deferred, not implemented
+
+`.github/workflows/ci.yml`'s `test` job runs each shard's classes serially within that shard (no `-parallel-testing-enabled` / `-maximum-concurrent-test-simulator-destinations`), even though #72 asked for it. Two live PR runs (#76) hung indefinitely on every UI shard that tried it: `xcodebuild` clones the destination simulator, and DTServiceHub fails to resume the cloned process (`Failed to send signal 19 to process ...`), which `xcodebuild` never recovers from. Pre-booting the base destination and pinning to its UDID before letting it get cloned didn't help - the failure is in the clone-launch step itself, reproduced identically on a local Xcode 26.6 Mac, independent of GitHub's infrastructure.
+
+This is a known, currently-unresolved Xcode 26.x issue on GitHub-hosted macOS runners (`actions/runner-images#13264` and linked issues), not something specific to this project's tests or fixable by more CI configuration. GitHub's own maintainer describes Xcode 26.x as "extremely resource-intensive and quite fragile when running in a virtual environment" and expects improvement only in a future Xcode point release.
+
+The ticket's underlying goal - PR checks not serially bottlenecked on one VM - is still achieved without clone parallelism: the `build-for-testing` job builds once, and the 4 `test` shards run concurrently as a matrix on separate runners, so PR-blocking wall time is `build + slowest shard`, not the old single job's serial sum of build + unit + all UI tests. Clone-based parallelism would only shrink the slowest individual shard's own test time further - a smaller, second-order win layered on top, not the primary one.
+
+Revisit once the pinned Xcode version moves past this class of runner (see ADR-0005) and a real PR run confirms clone-based parallel testing no longer hangs.

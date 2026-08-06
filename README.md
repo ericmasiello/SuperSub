@@ -51,18 +51,47 @@ lets the commit through rather than blocking on missing tooling.
 
 ## Continuous integration
 
-Every pull request runs two GitHub Actions checks, defined in
+Every pull request runs the following GitHub Actions checks, defined in
 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml):
 
 - **Lint** — runs `swiftlint lint --strict` against the same scope as the
   local command above.
-- **Test** — runs `SubTimerTests` and `SubTimerUITests` via `xcodebuild test`
-  against the `SubTimerCI` test plan (see below).
+- **Build for testing** — builds `SubTimerTests` + `SubTimerUITests` once
+  against the `SubTimerCI` test plan (see below) via
+  `xcodebuild build-for-testing`, and uploads the built products +
+  generated `.xctestrun` as an artifact for the shards below.
+- **Test / unit, Test / ui-player-launch, Test / ui-settings, Test /
+  ui-timer** — a 4-way matrix that each downloads that artifact and runs
+  `xcodebuild test-without-building -only-testing:...` against its own
+  slice of `SubTimerTests`/`SubTimerUITests`, instead of every job
+  rebuilding from scratch. These run concurrently on separate runners, so
+  build-once + sharding keeps the total PR-blocking time from being the
+  serial sum of every test class on one VM. See ADR-0008 for why each
+  shard runs its own classes serially rather than also parallelizing
+  within itself via simulator clones.
 
-Both jobs pin the runner image, Xcode version, and (for the test job)
-simulator OS so the pass/fail signal doesn't silently drift as GitHub
-updates its macOS images. If a job starts failing only in CI, check whether
-the pinned versions are still available on the runner before assuming the
+### Performance test tiering
+
+The `ui-player-launch` shard's 3 XCTest `measure{}` tests
+(`PlayerComponentsUITests.testPlayerRowsRenderPerformance`,
+`PlayerComponentsUITests.testScrollingPerformance`, and
+`SubTimerUITests.testLaunchPerformance`) are excluded by default via
+`-skip-testing:`. Repeated-iteration timing measurement is inherently slow
+and signals "did it get slower", not "did it break", so it isn't worth
+paying on every PR push.
+
+Apply the `test-ui-performance` label to a PR to run the full suite,
+including these tests, on its next check. Since the workflow's
+`pull_request` trigger includes `labeled` (in addition to the default
+`opened`/`synchronize`/`reopened`), applying the label re-triggers the
+check immediately, without requiring a new commit. Removing the label
+reverts subsequent triggers to the default (fast) tier.
+
+All jobs pin the runner image and Xcode version, and every job that builds
+or runs tests also pins the simulator OS, so the pass/fail signal doesn't
+silently drift as GitHub updates its macOS images. If a job starts failing
+only in CI, check whether the pinned versions are still available on the
+runner before assuming the
 code regressed.
 
 ## Running tests from the command line

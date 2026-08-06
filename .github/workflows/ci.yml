@@ -8,10 +8,25 @@ name: CI
 
 on:
   pull_request:
+    # Default types are [opened, synchronize, reopened]. `labeled` is added
+    # so applying the `test-ui-performance` label (see the `test` job below)
+    # re-triggers this workflow immediately, without requiring a new commit.
+    types: [opened, synchronize, reopened, labeled]
+
+# Without this, every push (or label) to a PR queues a brand-new set of 6
+# macOS jobs without canceling whatever this workflow already queued/started
+# for that same PR - on an account with a limited macOS-runner concurrency
+# quota, that backlog is what makes later pushes sit queued behind a run
+# that's testing an already-superseded commit.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 env:
   XCODE_VERSION: "26.5"
   SIMULATOR_DESTINATION: "platform=iOS Simulator,name=iPhone 17,OS=26.5"
+  DERIVED_DATA_PATH: DerivedData
+  PERF_TEST_LABEL: "test-ui-performance"
 
 jobs:
   lint:
@@ -32,9 +47,16 @@ jobs:
       - name: Run SwiftLint
         run: swiftlint lint --strict
 
-  test:
-    name: Unit + UI tests
+  # Builds SubTimerTests + SubTimerUITests exactly once (instead of every
+  # `test` shard below rebuilding from scratch) and hands the built products
+  # + generated .xctestrun to them as an artifact. See #72: the previous
+  # single "Unit + UI tests" job took ~12m28s, with UI tests alone
+  # accounting for ~518s/~69% of that, serially, on one VM.
+  build-for-testing:
+    name: Build for testing
     runs-on: macos-26
+    outputs:
+      xctestrun: ${{ steps.locate-xctestrun.outputs.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,14 +66,6 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
-      - name: Cache DerivedData
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: deriveddata-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('SubTimer.xcodeproj/project.pbxproj') }}
-          restore-keys: |
-            deriveddata-${{ runner.os }}-${{ env.XCODE_VERSION }}-
-
       - name: Warm up CoreSimulator for the selected Xcode
         # Switching to a non-default Xcode via setup-xcode can leave
         # xcodebuild's destination resolver blind to that Xcode's pre-baked
@@ -60,10 +74,134 @@ jobs:
         # matching the provided destination specifier" on a cold runner.
         run: xcrun simctl list devices available
 
-      - name: Run tests (SubTimerTests + SubTimerUITests)
+      # No DerivedData cache - see ADR-0009. One was tried and reverted;
+      # its key only hashed project.pbxproj, not source files, so it never
+      # invalidated on ordinary source edits. Every build here is
+      # deliberately cold; it's already ~1-2 minutes measured on #72's real
+      # PR runs, so the cache wasn't buying enough to justify that risk.
+
+      - name: Build for testing (SubTimerTests + SubTimerUITests)
         run: |
-          xcodebuild test \
+          xcodebuild build-for-testing \
             -project SubTimer.xcodeproj \
             -scheme SubTimer \
             -testPlan SubTimerCI \
-            -destination "${{ env.SIMULATOR_DESTINATION }}"
+            -destination "${{ env.SIMULATOR_DESTINATION }}" \
+            -derivedDataPath "${{ env.DERIVED_DATA_PATH }}"
+
+      - name: Locate the generated .xctestrun
+        id: locate-xctestrun
+        run: |
+          matches=$(find "${{ env.DERIVED_DATA_PATH }}/Build/Products" -maxdepth 1 -name '*.xctestrun')
+          match_count=$(printf '%s\n' "$matches" | grep -c . || true)
+          if [ "$match_count" -ne 1 ]; then
+            echo "::error::Expected exactly one .xctestrun under Build/Products, found $match_count" >&2
+            printf '%s\n' "$matches" >&2
+            exit 1
+          fi
+          echo "name=$(basename "$matches")" >> "$GITHUB_OUTPUT"
+
+      - name: Package built products for the test shards
+        # actions/upload-artifact's own zip/unzip roundtrip is a known
+        # footgun for the symlinks Xcode leaves inside .app/.xctest bundles
+        # on macOS runners; tarring first (tar preserves symlinks) and
+        # uploading the tarball as a single file avoids that.
+        run: tar -czf build-products.tar.gz -C "${{ env.DERIVED_DATA_PATH }}/Build/Products" .
+
+      - name: Upload built products
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-products
+          path: build-products.tar.gz
+          retention-days: 1
+
+  # Each shard below only runs its own classes serially within itself
+  # (no -parallel-testing-enabled). Simulator-clone parallel testing was
+  # attempted here and reliably hung on this exact macos-26/Xcode 26.5
+  # combination - see ADR-0008 for the evidence and why it's deferred
+  # rather than worked around. The wall-time win this ticket is after
+  # still holds without it: these 4 shards run as a matrix, concurrently
+  # on separate runners, so the PR-blocking time is `build + slowest
+  # shard`, not the old single job's serial sum of all of them.
+  test:
+    name: Test / ${{ matrix.shard }}
+    needs: build-for-testing
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: unit
+            only_testing: "SubTimerTests"
+          - shard: ui-player-launch
+            only_testing: >-
+              SubTimerUITests/PlayerComponentsUITests
+              SubTimerUITests/SubTimerUITests
+              SubTimerUITests/SubTimerUITestsLaunchTests
+            # These 3 XCTest `measure{}` tests are excluded by default -
+            # repeated-iteration timing measurement is inherently slow, and
+            # they signal "did it get slower", not "did it break". Apply the
+            # `test-ui-performance` label to a PR to run them too.
+            perf_testing: >-
+              SubTimerUITests/PlayerComponentsUITests/testPlayerRowsRenderPerformance
+              SubTimerUITests/PlayerComponentsUITests/testScrollingPerformance
+              SubTimerUITests/SubTimerUITests/testLaunchPerformance
+          - shard: ui-settings
+            only_testing: "SubTimerUITests/SettingsViewUITests"
+          - shard: ui-timer
+            only_testing: "SubTimerUITests/TimerViewUITests"
+    steps:
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Warm up CoreSimulator for the selected Xcode
+        run: xcrun simctl list devices available
+
+      - name: Download built products
+        uses: actions/download-artifact@v4
+        with:
+          name: build-products
+
+      - name: Unpack built products
+        run: |
+          mkdir -p "${{ env.DERIVED_DATA_PATH }}/Build/Products"
+          tar -xzf build-products.tar.gz -C "${{ env.DERIVED_DATA_PATH }}/Build/Products"
+
+      - name: Run tests (${{ matrix.shard }})
+        env:
+          # `github.event.pull_request.labels` always reflects the PR's
+          # current label set, regardless of which trigger type fired this
+          # run - so a label removal (not itself a trigger, see
+          # `on.pull_request.types` above) still reverts to the fast tier on
+          # the *next* trigger, without needing `unlabeled` added to the
+          # trigger types.
+          HAS_PERF_LABEL: ${{ contains(github.event.pull_request.labels.*.name, env.PERF_TEST_LABEL) }}
+        run: |
+          only_testing_flags=()
+          for target in ${{ matrix.only_testing }}; do
+            only_testing_flags+=("-only-testing:$target")
+          done
+
+          skip_testing_flags=()
+          if [ "$HAS_PERF_LABEL" != "true" ]; then
+            for target in ${{ matrix.perf_testing }}; do
+              skip_testing_flags+=("-skip-testing:$target")
+            done
+          fi
+
+          xcodebuild test-without-building \
+            -xctestrun "${{ env.DERIVED_DATA_PATH }}/Build/Products/${{ needs.build-for-testing.outputs.xctestrun }}" \
+            -destination "${{ env.SIMULATOR_DESTINATION }}" \
+            -resultBundlePath "${{ matrix.shard }}.xcresult" \
+            "${only_testing_flags[@]}" \
+            "${skip_testing_flags[@]}"
+
+      - name: Upload result bundle on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ matrix.shard }}
+          path: ${{ matrix.shard }}.xcresult
+          retention-days: 5

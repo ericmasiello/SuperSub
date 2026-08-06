@@ -37,6 +37,11 @@ struct TemporarilyOutPlayerRowView: View {
                     .foregroundStyle(.white)
                     .cornerRadius(6)
             }
+            // Every temporarily-out row's button otherwise shares the same
+            // visual "Return to Bench" text, so with 2+ players out at
+            // once, VoiceOver (and anything else driven by accessibility
+            // label alone) can't tell whose button it's landed on.
+            .accessibilityLabel("Return \(player.name) to Bench")
         }
         .padding()
         .accessibilityIdentifier("player.row.tempout")
