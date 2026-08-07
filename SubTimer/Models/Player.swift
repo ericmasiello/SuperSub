@@ -10,23 +10,37 @@ import SwiftData
 
 @Model
 final class Player {
-    var id: UUID
-    var name: String
-    var createdDate: Date
-    var currentPlayDuration: TimeInterval
-    var totalPlayTime: TimeInterval
-    var status: PlayerStatus
-    var sortOrder: Int
-    var activatedAtDate: Date
+    static let defaultCurrentPlayDuration: TimeInterval = 0
+    static let defaultTotalPlayTime: TimeInterval = 0
+    static let defaultStatus: PlayerStatus = .benched
+    static let defaultSortOrder = 0
+
+    var id = UUID()
+    var name: String = ""
+    var createdDate = Date()
+    var currentPlayDuration = Player.defaultCurrentPlayDuration
+    var totalPlayTime = Player.defaultTotalPlayTime
+    var status = Player.defaultStatus
+    var sortOrder = Player.defaultSortOrder
+    var activatedAtDate = Date()
+
+    // Dormant, additive relationships from #57 — nothing reads or writes
+    // these yet. Required as CloudKit-compatible inverses for
+    // `RosterMembership.player` / `Stint.player` (see #55).
+    @Relationship(deleteRule: .nullify, inverse: \RosterMembership.player)
+    var rosterMemberships: [RosterMembership]?
+
+    @Relationship(deleteRule: .nullify, inverse: \Stint.player)
+    var stints: [Stint]?
 
     init(
         id: UUID = UUID(),
         name: String,
         createdDate: Date = Date(),
-        currentPlayDuration: TimeInterval = 0,
-        totalPlayTime: TimeInterval = 0,
-        status: PlayerStatus = .benched,
-        sortOrder: Int = 0,
+        currentPlayDuration: TimeInterval = Player.defaultCurrentPlayDuration,
+        totalPlayTime: TimeInterval = Player.defaultTotalPlayTime,
+        status: PlayerStatus = Player.defaultStatus,
+        sortOrder: Int = Player.defaultSortOrder,
         activatedAtDate: Date = Date()
     ) {
         self.id = id

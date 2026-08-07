@@ -10,15 +10,18 @@ import SwiftData
 
 @Model
 final class AppConfiguration {
-    var id: UUID
-    var preferredPlayTimeSeconds: Int
-    var activePlayersCount: Int
-    var lastModifiedDate: Date
+    static let defaultPreferredPlayTimeSeconds = 180 // Default 3:00 minutes
+    static let defaultActivePlayersCount = 4
+
+    var id = UUID()
+    var preferredPlayTimeSeconds = AppConfiguration.defaultPreferredPlayTimeSeconds
+    var activePlayersCount = AppConfiguration.defaultActivePlayersCount
+    var lastModifiedDate = Date()
 
     init(
         id: UUID = UUID(),
-        preferredPlayTimeSeconds: Int = 180, // Default 3:00 minutes
-        activePlayersCount: Int = 4,
+        preferredPlayTimeSeconds: Int = AppConfiguration.defaultPreferredPlayTimeSeconds,
+        activePlayersCount: Int = AppConfiguration.defaultActivePlayersCount,
         lastModifiedDate: Date = Date()
     ) {
         self.id = id
