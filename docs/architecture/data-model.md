@@ -2,7 +2,7 @@
 
 The persisted model is mid-transition between two shapes:
 
-- **In use:** `Player`, `Session`, `OrderManager`, `AppConfiguration` — back
+- **In use:** `Player`, `Session`, `OrderManager`, `AppConfiguration` — backing
   all current app behavior. Of these, `Player` continues to exist once the
   transition is complete; `Session`, `OrderManager`, and `AppConfiguration`
   are expected to be superseded by the dormant types below.
