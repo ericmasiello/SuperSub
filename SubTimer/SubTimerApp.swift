@@ -26,7 +26,11 @@ struct SubTimerApp: App {
             Player.self,
             AppConfiguration.self,
             Session.self,
-            OrderManager.self
+            OrderManager.self,
+            Team.self,
+            RosterMembership.self,
+            Game.self,
+            Stint.self
         ])
 
         // Use in-memory storage for UI testing

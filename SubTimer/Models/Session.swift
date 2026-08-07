@@ -10,24 +10,30 @@ import SwiftData
 
 @Model
 final class Session {
-    var id: UUID
-    var startDate: Date
+    static let defaultDuration: TimeInterval = 0
+    static let defaultSubstitutionCount = 0
+    static let defaultPreferredPlayTimeSeconds = 180 // Default 3:00 minutes
+    static let defaultActivePlayersCount = 4
+    static let defaultPlayerNames: [String] = []
+
+    var id = UUID()
+    var startDate = Date()
     var endDate: Date?
-    var duration: TimeInterval
-    var substitutionCount: Int
-    var preferredPlayTimeSeconds: Int
-    var activePlayersCount: Int
-    var playerNames: [String]
+    var duration = Session.defaultDuration
+    var substitutionCount = Session.defaultSubstitutionCount
+    var preferredPlayTimeSeconds = Session.defaultPreferredPlayTimeSeconds
+    var activePlayersCount = Session.defaultActivePlayersCount
+    var playerNames = Session.defaultPlayerNames
 
     init(
         id: UUID = UUID(),
         startDate: Date = Date(),
         endDate: Date? = nil,
-        duration: TimeInterval = 0,
-        substitutionCount: Int = 0,
-        preferredPlayTimeSeconds: Int = 180,
-        activePlayersCount: Int = 4,
-        playerNames: [String] = []
+        duration: TimeInterval = Session.defaultDuration,
+        substitutionCount: Int = Session.defaultSubstitutionCount,
+        preferredPlayTimeSeconds: Int = Session.defaultPreferredPlayTimeSeconds,
+        activePlayersCount: Int = Session.defaultActivePlayersCount,
+        playerNames: [String] = Session.defaultPlayerNames
     ) {
         self.id = id
         self.startDate = startDate

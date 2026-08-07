@@ -15,16 +15,18 @@ enum PlayerOrderRole: String, Codable {
 
 @Model
 final class OrderManager {
-    var id: UUID
-    var role: PlayerOrderRole
-    var playerOrder: [UUID]
-    var createdDate: Date
-    var updatedDate: Date
+    static let defaultPlayerOrder: [UUID] = []
+
+    var id = UUID()
+    var role = PlayerOrderRole.bench
+    var playerOrder = OrderManager.defaultPlayerOrder
+    var createdDate = Date()
+    var updatedDate = Date()
 
     init(
         role: PlayerOrderRole,
         id: UUID = UUID(),
-        playerOrder: [UUID] = [],
+        playerOrder: [UUID] = OrderManager.defaultPlayerOrder,
         createdDate: Date = Date(),
         updatedDate: Date = Date()
     ) {
