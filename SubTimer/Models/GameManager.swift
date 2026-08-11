@@ -114,6 +114,14 @@ final class GameManager {
         guard let incomingPlayerId = game.benchOrder.first else { return nil }
         guard let outgoingPlayerId = longestServingActivePlayerId(in: game) else { return nil }
 
+        // Validate the incoming player exists before mutating anything: a swap is
+        // two `transition` calls with no rollback, so if the second one threw after
+        // the first succeeded, the outgoing player would be left benched with no
+        // incoming replacement.
+        guard try fetchPlayer(id: incomingPlayerId) != nil else {
+            throw GameManagerError.playerNotFound
+        }
+
         try transition(playerId: outgoingPlayerId, to: .benched, in: game)
         try transition(playerId: incomingPlayerId, to: .active, in: game)
         game.substitutionCount += 1
@@ -130,6 +138,9 @@ final class GameManager {
         }
         guard !game.activeOrder.contains(incomingPlayerId) else {
             throw GameManagerError.incomingPlayerAlreadyActive
+        }
+        guard try fetchPlayer(id: incomingPlayerId) != nil else {
+            throw GameManagerError.playerNotFound
         }
 
         try transition(playerId: outgoingPlayerId, to: .benched, in: game)
