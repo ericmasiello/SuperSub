@@ -105,10 +105,29 @@ struct GameManagerTransitionTests {
         let manager = GameManager(context: context)
         let unknownPlayerId = UUID()
 
-        try? manager.transition(playerId: unknownPlayerId, to: .active, in: game)
+        #expect(throws: GameManagerError.playerNotFound) {
+            try manager.transition(playerId: unknownPlayerId, to: .active, in: game)
+        }
 
         #expect(game.activeOrder.isEmpty)
         #expect((game.stints ?? []).isEmpty)
+    }
+
+    @Test func redundantTransitionToActiveDoesNotCloseTheOpenStint() throws {
+        let context = try makeGameManagerTestContext()
+        let player = Player(name: "Alex")
+        let game = Game()
+        context.insert(player)
+        context.insert(game)
+        let manager = GameManager(context: context)
+
+        try manager.transition(playerId: player.id, to: .active, in: game)
+        try manager.transition(playerId: player.id, to: .active, in: game)
+
+        #expect(game.activeOrder == [player.id])
+        let stints = game.stints ?? []
+        #expect(stints.count == 1)
+        #expect(stints.first?.endDate == nil)
     }
 }
 

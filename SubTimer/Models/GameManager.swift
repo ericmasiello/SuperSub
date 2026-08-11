@@ -78,7 +78,7 @@ final class GameManager {
 
         if let enteringPlayer {
             openNewStint(for: enteringPlayer, in: game)
-        } else if wasActive {
+        } else if bucket != .active && wasActive {
             closeOpenStint(for: playerId, in: game)
         }
     }
