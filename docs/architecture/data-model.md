@@ -70,3 +70,70 @@ classDiagram
 - The app's shipped `ModelConfiguration` remains local-only
   (`cloudKitDatabase: .none`) per ADR-0001, even though the schema above is
   already shaped to be CloudKit-compatible.
+
+## GameManager and TeamManager (#58)
+
+`GameManager` and `TeamManager` are the only code allowed to mutate
+`Game`/`Stint`/`RosterMembership` — the models themselves stay anemic (no
+methods). Both are plain (non-`@Model`) classes, fully unit-tested against
+in-memory `ModelContainer`s; the dormant models above are still not read or
+written by any app UI, only by these managers' tests.
+
+```mermaid
+classDiagram
+    class GameManager {
+        +transition(playerId: UUID, to: RotationBucket, in: Game)
+        +automaticSubstitution(game: Game)
+        +manualSubstitution(outgoing: UUID, incoming: UUID, game: Game)
+        +addAdHocPlayer(player: Player, to: Game)
+        +currentPlayDuration(playerId: UUID, in: Game) TimeInterval
+        +totalPlayTime(playerId: UUID, in: Game) TimeInterval
+    }
+    class TeamManager {
+        +addToRoster(player: Player, team: Team) RosterMembership
+        +removeFromRoster(player: Player, team: Team)
+        +updatePreferredPosition(membership: RosterMembership, position: String?)
+        +updateDefaults(team: Team, preferredPlayTimeSeconds: Int, activePlayersCount: Int)
+    }
+    class RotationBucket {
+        <<enumeration>>
+        active
+        benched
+        temporarilyOut
+    }
+    class Game {
+        <<anemic>>
+    }
+    class Stint {
+        <<anemic>>
+    }
+    class Team {
+        <<anemic>>
+    }
+    class RosterMembership {
+        <<anemic>>
+    }
+
+    GameManager ..> RotationBucket : uses
+    GameManager --> Game : sole mutator of activeOrder/benchOrder/temporarilyOut
+    GameManager --> Stint : sole opener/closer
+    TeamManager --> RosterMembership : sole creator/deleter, enforces (Player,Team) uniqueness
+    TeamManager --> Team : reads/updates defaults
+```
+
+`transition` stays a single gateway that updates bucket membership and the
+open/closed `Stint` together, so the two facts can never drift apart:
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant GameManager
+    participant Game
+    participant Stint
+
+    Caller->>GameManager: transition(playerId, to: .active, in: game)
+    GameManager->>Game: purge playerId from benchOrder/temporarilyOut
+    GameManager->>Game: append playerId to activeOrder
+    GameManager->>Stint: open new Stint(player, game, startDate: now)
+    GameManager-->>Caller: bucket membership + Stint updated atomically, in one call
+```
