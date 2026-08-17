@@ -15,6 +15,7 @@ struct GameTests {
         let game = Game()
 
         #expect(game.endDate == nil)
+        #expect(game.duration == 0)
         #expect(game.substitutionCount == 0)
         #expect(game.preferredPlayTimeSeconds == 180)
         #expect(game.activePlayersCount == 4)
@@ -41,5 +42,11 @@ struct GameTests {
         let game = Game(team: team)
 
         #expect(game.team === team)
+    }
+
+    @Test func gameDurationIsSettableViaInit() {
+        let game = Game(duration: 942)
+
+        #expect(game.duration == 942)
     }
 }
