@@ -12,6 +12,7 @@ struct BenchPlayerRowView: View {
     // MARK: - Properties
 
     let player: Player
+    let totalPlayTime: TimeInterval
     let isNextUp: Bool
     let canActivate: Bool
     let onTap: () -> Void
@@ -51,7 +52,7 @@ struct BenchPlayerRowView: View {
                         .accessibilityLabel("Next Up")
                 }
             }
-            Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
+            Text("Total: \(TimeFormatter.format(totalPlayTime))")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -83,7 +84,8 @@ struct BenchPlayerRowView: View {
 
 #Preview("Normal Bench Player") {
     BenchPlayerRowView(
-        player: Player(name: "John Doe", totalPlayTime: 180),
+        player: Player(name: "John Doe"),
+        totalPlayTime: 180,
         isNextUp: false,
         canActivate: false,
         onTap: { print("Player tapped") },
@@ -94,7 +96,8 @@ struct BenchPlayerRowView: View {
 
 #Preview("Next Up Player") {
     BenchPlayerRowView(
-        player: Player(name: "Jane Smith", totalPlayTime: 240),
+        player: Player(name: "Jane Smith"),
+        totalPlayTime: 240,
         isNextUp: true,
         canActivate: false,
         onTap: { print("Player tapped") },
@@ -105,7 +108,8 @@ struct BenchPlayerRowView: View {
 
 #Preview("Can Activate") {
     BenchPlayerRowView(
-        player: Player(name: "Mike Johnson", totalPlayTime: 120),
+        player: Player(name: "Mike Johnson"),
+        totalPlayTime: 120,
         isNextUp: false,
         canActivate: true,
         onTap: { print("Player tapped") },
@@ -116,7 +120,8 @@ struct BenchPlayerRowView: View {
 
 #Preview("Next Up & Can Activate") {
     BenchPlayerRowView(
-        player: Player(name: "Sarah Williams", totalPlayTime: 60),
+        player: Player(name: "Sarah Williams"),
+        totalPlayTime: 60,
         isNextUp: true,
         canActivate: true,
         onTap: { print("Player tapped") },
@@ -127,7 +132,8 @@ struct BenchPlayerRowView: View {
 
 #Preview("Zero Play Time") {
     BenchPlayerRowView(
-        player: Player(name: "New Player", totalPlayTime: 0),
+        player: Player(name: "New Player"),
+        totalPlayTime: 0,
         isNextUp: false,
         canActivate: true,
         onTap: { print("Player tapped") },

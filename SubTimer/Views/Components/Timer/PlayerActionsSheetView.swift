@@ -12,6 +12,9 @@ struct PlayerActionsSheetView: View {
     // MARK: - Properties
 
     let player: Player
+    let status: RotationBucket
+    let currentPlayDuration: TimeInterval
+    let totalPlayTime: TimeInterval
     let canActivate: Bool
     let onSubstituteOut: () -> Void
     let onActivatePlayer: () -> Void
@@ -26,11 +29,11 @@ struct PlayerActionsSheetView: View {
             List {
                 // Actions section based on player status
                 Section {
-                    if player.status == .active {
+                    if status == .active {
                         activePlayerActions
-                    } else if player.status == .benched {
+                    } else if status == .benched {
                         benchedPlayerActions
-                    } else if player.status == .temporarilyOut {
+                    } else if status == .temporarilyOut {
                         temporarilyOutPlayerActions
                     }
                 }
@@ -99,14 +102,14 @@ struct PlayerActionsSheetView: View {
             HStack {
                 Text("Current Play Duration")
                 Spacer()
-                Text(TimeFormatter.format(player.currentPlayDuration))
+                Text(TimeFormatter.format(currentPlayDuration))
                     .foregroundStyle(.secondary)
             }
 
             HStack {
                 Text("Total Play Time")
                 Spacer()
-                Text(TimeFormatter.format(player.totalPlayTime))
+                Text(TimeFormatter.format(totalPlayTime))
                     .foregroundStyle(.secondary)
             }
         }
@@ -117,13 +120,10 @@ struct PlayerActionsSheetView: View {
 
 #Preview("Active Player") {
     PlayerActionsSheetView(
-        player: Player(
-            name: "Alice",
-            currentPlayDuration: 120, // 2 minutes
-            totalPlayTime: 600, // 10 minutes
-            status: .active,
-            sortOrder: 0
-        ),
+        player: Player(name: "Alice", sortOrder: 0),
+        status: .active,
+        currentPlayDuration: 120, // 2 minutes
+        totalPlayTime: 600, // 10 minutes
         canActivate: true,
         onSubstituteOut: { print("Substitute out") },
         onActivatePlayer: { print("Activate") },
@@ -135,13 +135,10 @@ struct PlayerActionsSheetView: View {
 
 #Preview("Benched Player - Can Activate") {
     PlayerActionsSheetView(
-        player: Player(
-            name: "Bob",
-            currentPlayDuration: 0,
-            totalPlayTime: 450, // 7.5 minutes
-            status: .benched,
-            sortOrder: 1
-        ),
+        player: Player(name: "Bob", sortOrder: 1),
+        status: .benched,
+        currentPlayDuration: 0,
+        totalPlayTime: 450, // 7.5 minutes
         canActivate: true,
         onSubstituteOut: { print("Substitute out") },
         onActivatePlayer: { print("Activate") },
@@ -153,13 +150,10 @@ struct PlayerActionsSheetView: View {
 
 #Preview("Benched Player - Cannot Activate") {
     PlayerActionsSheetView(
-        player: Player(
-            name: "Charlie",
-            currentPlayDuration: 0,
-            totalPlayTime: 300, // 5 minutes
-            status: .benched,
-            sortOrder: 2
-        ),
+        player: Player(name: "Charlie", sortOrder: 2),
+        status: .benched,
+        currentPlayDuration: 0,
+        totalPlayTime: 300, // 5 minutes
         canActivate: false,
         onSubstituteOut: { print("Substitute out") },
         onActivatePlayer: { print("Activate") },
@@ -171,13 +165,10 @@ struct PlayerActionsSheetView: View {
 
 #Preview("Temporarily Out Player") {
     PlayerActionsSheetView(
-        player: Player(
-            name: "Diana",
-            currentPlayDuration: 0,
-            totalPlayTime: 800, // 13.3 minutes
-            status: .temporarilyOut,
-            sortOrder: 3
-        ),
+        player: Player(name: "Diana", sortOrder: 3),
+        status: .temporarilyOut,
+        currentPlayDuration: 0,
+        totalPlayTime: 800, // 13.3 minutes
         canActivate: false,
         onSubstituteOut: { print("Substitute out") },
         onActivatePlayer: { print("Activate") },
@@ -189,13 +180,10 @@ struct PlayerActionsSheetView: View {
 
 #Preview("Player with No Play Time") {
     PlayerActionsSheetView(
-        player: Player(
-            name: "Eve",
-            currentPlayDuration: 0,
-            totalPlayTime: 0,
-            status: .benched,
-            sortOrder: 4
-        ),
+        player: Player(name: "Eve", sortOrder: 4),
+        status: .benched,
+        currentPlayDuration: 0,
+        totalPlayTime: 0,
         canActivate: true,
         onSubstituteOut: { print("Substitute out") },
         onActivatePlayer: { print("Activate") },

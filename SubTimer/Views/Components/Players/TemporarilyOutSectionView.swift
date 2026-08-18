@@ -12,6 +12,7 @@ struct TemporarilyOutSectionView: View {
     // MARK: - Properties
 
     let players: [Player]
+    let totalPlayTime: (Player) -> TimeInterval
     let onReturnToBench: (Player) -> Void
 
     // MARK: - Body
@@ -29,6 +30,7 @@ struct TemporarilyOutSectionView: View {
                 ForEach(players) { player in
                     TemporarilyOutPlayerRowView(
                         player: player,
+                        totalPlayTime: totalPlayTime(player),
                         onReturnToBench: { onReturnToBench(player) }
                     )
                     .padding(.horizontal, 4)
@@ -44,12 +46,14 @@ struct TemporarilyOutSectionView: View {
 // MARK: - Preview
 
 #Preview("With Temporarily Out Players") {
+    let totals: [String: TimeInterval] = ["John Doe": 300, "Jane Smith": 450, "Mike Johnson": 180]
     TemporarilyOutSectionView(
         players: [
-            Player(name: "John Doe", totalPlayTime: 300, status: .temporarilyOut),
-            Player(name: "Jane Smith", totalPlayTime: 450, status: .temporarilyOut),
-            Player(name: "Mike Johnson", totalPlayTime: 180, status: .temporarilyOut)
+            Player(name: "John Doe", status: .temporarilyOut),
+            Player(name: "Jane Smith", status: .temporarilyOut),
+            Player(name: "Mike Johnson", status: .temporarilyOut)
         ],
+        totalPlayTime: { totals[$0.name] ?? 0 },
         onReturnToBench: { player in print("Return: \(player.name)") }
     )
     .padding()
@@ -58,21 +62,24 @@ struct TemporarilyOutSectionView: View {
 #Preview("Single Player") {
     TemporarilyOutSectionView(
         players: [
-            Player(name: "Solo Out", totalPlayTime: 200, status: .temporarilyOut)
+            Player(name: "Solo Out", status: .temporarilyOut)
         ],
+        totalPlayTime: { _ in 200 },
         onReturnToBench: { _ in }
     )
     .padding()
 }
 
 #Preview("Multiple Players") {
+    let totals: [String: TimeInterval] = ["Player 1": 100, "Player 2": 500, "Player 3": 250, "Player 4": 75]
     TemporarilyOutSectionView(
         players: [
-            Player(name: "Player 1", totalPlayTime: 100, status: .temporarilyOut),
-            Player(name: "Player 2", totalPlayTime: 500, status: .temporarilyOut),
-            Player(name: "Player 3", totalPlayTime: 250, status: .temporarilyOut),
-            Player(name: "Player 4", totalPlayTime: 75, status: .temporarilyOut)
+            Player(name: "Player 1", status: .temporarilyOut),
+            Player(name: "Player 2", status: .temporarilyOut),
+            Player(name: "Player 3", status: .temporarilyOut),
+            Player(name: "Player 4", status: .temporarilyOut)
         ],
+        totalPlayTime: { totals[$0.name] ?? 0 },
         onReturnToBench: { _ in }
     )
     .padding()
@@ -81,8 +88,9 @@ struct TemporarilyOutSectionView: View {
 #Preview("Zero Play Time") {
     TemporarilyOutSectionView(
         players: [
-            Player(name: "New Player Out", totalPlayTime: 0, status: .temporarilyOut)
+            Player(name: "New Player Out", status: .temporarilyOut)
         ],
+        totalPlayTime: { _ in 0 },
         onReturnToBench: { _ in }
     )
     .padding()
