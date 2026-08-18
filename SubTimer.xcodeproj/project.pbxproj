@@ -57,6 +57,22 @@
 		4D4D7A5A2F54A87600499044 /* ActiveBenchExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ActiveBenchExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D4D7A5C2F54A87600499044 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		4D4D7A5E2F54A87600499044 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		4DA5CA153034759D0093BCBE /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
+		4DA5CA163034759D0093BCBE /* CONTEXT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CONTEXT.md; sourceTree = "<group>"; };
+		4DA5CA173034759D0093BCBE /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		4DA5CA18303475AD0093BCBE /* 0001-local-only-persistence-no-cloudkit.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0001-local-only-persistence-no-cloudkit.md"; sourceTree = "<group>"; };
+		4DA5CA19303475AD0093BCBE /* 0002-swipe-actions-for-player-row-actions.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0002-swipe-actions-for-player-row-actions.md"; sourceTree = "<group>"; };
+		4DA5CA1A303475AD0093BCBE /* 0003-explicit-test-plan-not-autocreated.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0003-explicit-test-plan-not-autocreated.md"; sourceTree = "<group>"; };
+		4DA5CA1B303475AD0093BCBE /* 0004-bench-active-order-as-dedicated-records.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0004-bench-active-order-as-dedicated-records.md"; sourceTree = "<group>"; };
+		4DA5CA1C303475AD0093BCBE /* 0005-pinned-ci-runner-and-xcode-versions.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0005-pinned-ci-runner-and-xcode-versions.md"; sourceTree = "<group>"; };
+		4DA5CA1D303475AD0093BCBE /* 0006-ci-only-test-plan-for-flaky-skips.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0006-ci-only-test-plan-for-flaky-skips.md"; sourceTree = "<group>"; };
+		4DA5CA1E303475AD0093BCBE /* 0007-plain-script-pre-commit-hook.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0007-plain-script-pre-commit-hook.md"; sourceTree = "<group>"; };
+		4DA5CA1F303475AD0093BCBE /* 0008-defer-clone-based-parallel-testing.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0008-defer-clone-based-parallel-testing.md"; sourceTree = "<group>"; };
+		4DA5CA20303475AD0093BCBE /* 0009-no-deriveddata-cache-in-ci.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "0009-no-deriveddata-cache-in-ci.md"; sourceTree = "<group>"; };
+		4DA5CA22303475AD0093BCBE /* domain.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = domain.md; sourceTree = "<group>"; };
+		4DA5CA23303475AD0093BCBE /* issue-tracker.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "issue-tracker.md"; sourceTree = "<group>"; };
+		4DA5CA24303475AD0093BCBE /* triage-labels.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "triage-labels.md"; sourceTree = "<group>"; };
+		4DA5CA26303475AD0093BCBE /* data-model.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "data-model.md"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -173,10 +189,58 @@
 		4D4D7A5B2F54A87600499044 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				4DA5CA153034759D0093BCBE /* AGENTS.md */,
+				4DA5CA163034759D0093BCBE /* CONTEXT.md */,
+				4DA5CA173034759D0093BCBE /* README.md */,
 				4D4D7A5C2F54A87600499044 /* WidgetKit.framework */,
 				4D4D7A5E2F54A87600499044 /* SwiftUI.framework */,
+				4DA5CA28303475AD0093BCBE /* docs */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		4DA5CA21303475AD0093BCBE /* adr */ = {
+			isa = PBXGroup;
+			children = (
+				4DA5CA18303475AD0093BCBE /* 0001-local-only-persistence-no-cloudkit.md */,
+				4DA5CA19303475AD0093BCBE /* 0002-swipe-actions-for-player-row-actions.md */,
+				4DA5CA1A303475AD0093BCBE /* 0003-explicit-test-plan-not-autocreated.md */,
+				4DA5CA1B303475AD0093BCBE /* 0004-bench-active-order-as-dedicated-records.md */,
+				4DA5CA1C303475AD0093BCBE /* 0005-pinned-ci-runner-and-xcode-versions.md */,
+				4DA5CA1D303475AD0093BCBE /* 0006-ci-only-test-plan-for-flaky-skips.md */,
+				4DA5CA1E303475AD0093BCBE /* 0007-plain-script-pre-commit-hook.md */,
+				4DA5CA1F303475AD0093BCBE /* 0008-defer-clone-based-parallel-testing.md */,
+				4DA5CA20303475AD0093BCBE /* 0009-no-deriveddata-cache-in-ci.md */,
+			);
+			path = adr;
+			sourceTree = "<group>";
+		};
+		4DA5CA25303475AD0093BCBE /* agents */ = {
+			isa = PBXGroup;
+			children = (
+				4DA5CA22303475AD0093BCBE /* domain.md */,
+				4DA5CA23303475AD0093BCBE /* issue-tracker.md */,
+				4DA5CA24303475AD0093BCBE /* triage-labels.md */,
+			);
+			path = agents;
+			sourceTree = "<group>";
+		};
+		4DA5CA27303475AD0093BCBE /* architecture */ = {
+			isa = PBXGroup;
+			children = (
+				4DA5CA26303475AD0093BCBE /* data-model.md */,
+			);
+			path = architecture;
+			sourceTree = "<group>";
+		};
+		4DA5CA28303475AD0093BCBE /* docs */ = {
+			isa = PBXGroup;
+			children = (
+				4DA5CA21303475AD0093BCBE /* adr */,
+				4DA5CA25303475AD0093BCBE /* agents */,
+				4DA5CA27303475AD0093BCBE /* architecture */,
+			);
+			path = docs;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
