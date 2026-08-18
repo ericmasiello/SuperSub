@@ -39,6 +39,7 @@ classDiagram
         <<dormant>>
         +Date startDate
         +Date? endDate
+        +TimeInterval duration
         +Int substitutionCount
         +Int preferredPlayTimeSeconds
         +Int activePlayersCount
@@ -136,4 +137,47 @@ sequenceDiagram
     GameManager->>Game: append playerId to activeOrder
     GameManager->>Stint: open new Stint(player, game, startDate: now)
     GameManager-->>Caller: bucket membership + Stint updated atomically, in one call
+```
+
+## Legacy data migration (#59)
+
+A one-time, idempotent transform, driven by `SubTimerMigrationPlan`
+(`SchemaV1` → `SchemaV2`) on `ModelContainer` open, that populates the
+dormant `Team`/`RosterMembership`/`Game` rows from the in-use
+`Player`/`Session`/`AppConfiguration` data. No `GameManager`/`TeamManager`
+involvement — this only produces correct rows for later tickets to wire up.
+
+`SchemaV1` gives `Player` its own frozen, relationship-free snapshot rather
+than reusing the real `Player` class: the real class already carries #57's
+`rosterMemberships`/`stints` relationships, and reusing it as-is would pull
+`RosterMembership`/`Stint`/`Team` into `SchemaV1`'s compiled model too,
+making it indistinguishable from `SchemaV2`. `AppConfiguration`/`Session`/
+`OrderManager` have no such relationships, so `SchemaV2` reuses them —
+and the real `Player`/`Team`/`RosterMembership`/`Game`/`Stint` — directly.
+
+`Game` gained a `duration: TimeInterval` field as part of this ticket: it
+has no other way to preserve an in-progress `Session`'s elapsed time (`Session.endDate`
+is `nil` while active, so `duration` can't be re-derived from
+`startDate`/`endDate` alone), mirroring `Session`'s own two-field shape.
+
+```mermaid
+sequenceDiagram
+    participant App as App launch
+    participant Plan as SchemaMigrationPlan
+    participant Legacy as V1 store (Player, Session, AppConfiguration)
+    participant New as V2 store (Team, RosterMembership, Game)
+
+    App->>Plan: open ModelContainer
+    Plan->>New: check for existing migrated Team
+    alt already migrated
+        Plan-->>App: no-op, reuse existing Team/RosterMembership/Game rows
+    else not yet migrated
+        Plan->>Legacy: read AppConfiguration singleton
+        Plan->>New: create Team (preferredPlayTimeSeconds/activePlayersCount seeded from AppConfiguration)
+        Plan->>Legacy: read every Player
+        Plan->>New: create one RosterMembership(player, team) per Player, position = nil
+        Plan->>Legacy: read every Session
+        Plan->>New: create one Game(team) per Session, copying startDate/endDate/duration/substitutionCount
+        Plan-->>App: migration complete
+    end
 ```

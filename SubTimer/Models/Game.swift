@@ -10,6 +10,7 @@ import SwiftData
 
 @Model
 final class Game {
+    static let defaultDuration: TimeInterval = 0
     static let defaultSubstitutionCount = 0
     static let defaultPreferredPlayTimeSeconds = 180
     static let defaultActivePlayersCount = 4
@@ -20,6 +21,7 @@ final class Game {
     var id = UUID()
     var startDate = Date()
     var endDate: Date?
+    var duration = Game.defaultDuration
     var substitutionCount = Game.defaultSubstitutionCount
     var preferredPlayTimeSeconds = Game.defaultPreferredPlayTimeSeconds
     var activePlayersCount = Game.defaultActivePlayersCount
@@ -37,6 +39,7 @@ final class Game {
         id: UUID = UUID(),
         startDate: Date = Date(),
         endDate: Date? = nil,
+        duration: TimeInterval = Game.defaultDuration,
         substitutionCount: Int = Game.defaultSubstitutionCount,
         preferredPlayTimeSeconds: Int = Game.defaultPreferredPlayTimeSeconds,
         activePlayersCount: Int = Game.defaultActivePlayersCount,
@@ -48,6 +51,7 @@ final class Game {
         self.id = id
         self.startDate = startDate
         self.endDate = endDate
+        self.duration = duration
         self.substitutionCount = substitutionCount
         self.preferredPlayTimeSeconds = preferredPlayTimeSeconds
         self.activePlayersCount = activePlayersCount

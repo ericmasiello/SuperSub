@@ -22,16 +22,7 @@ struct SubTimerApp: App {
     // MARK: - Model Container Setup
 
     private static func makeModelContainer() -> ModelContainer {
-        let schema = Schema([
-            Player.self,
-            AppConfiguration.self,
-            Session.self,
-            OrderManager.self,
-            Team.self,
-            RosterMembership.self,
-            Game.self,
-            Stint.self
-        ])
+        let schema = Schema(versionedSchema: SchemaV2.self)
 
         // Use in-memory storage for UI testing
         let isUITesting = CommandLine.arguments.contains("--uitesting")
@@ -42,7 +33,11 @@ struct SubTimerApp: App {
         )
 
         do {
-            let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: SubTimerMigrationPlan.self,
+                configurations: [modelConfiguration]
+            )
 
             // Add test data when in UI testing mode
             if isUITesting {
@@ -81,7 +76,11 @@ struct SubTimerApp: App {
         )
 
         do {
-            let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: SubTimerMigrationPlan.self,
+                configurations: [modelConfiguration]
+            )
             if isUITesting {
                 setupTestData(in: container)
             }
