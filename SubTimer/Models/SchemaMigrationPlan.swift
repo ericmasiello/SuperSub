@@ -98,8 +98,8 @@ enum SubTimerMigrationPlan: SchemaMigrationPlan {
 /// Guarded by "does any `Team` already exist" *before* creating any row, so
 /// running this twice (e.g. app relaunch after a partial/completed migration)
 /// never creates a second `Team` or duplicate `RosterMembership`/`Game` rows.
-func migrateLegacyDataToTeamModel(in context: ModelContext) throws {
-    guard try context.fetch(FetchDescriptor<Team>()).isEmpty else {
+private func migrateLegacyDataToTeamModel(in context: ModelContext) throws {
+    guard try context.fetchCount(FetchDescriptor<Team>()) == 0 else {
         return
     }
 
