@@ -101,7 +101,8 @@ struct SubTimerApp: App {
         player1.currentPlayDuration = 120
         player1.totalPlayTime = 300
         // TimerView bootstraps its first Game's Stints from activatedAtDate
-        // (see TimerView.seedGameFromLegacyStatus) - backdating this keeps
+        // (see GameManager.seedFromLegacyStatus, called from
+        // TimerView.resolveOrCreateGame) - backdating this keeps
         // GameManager.currentPlayDuration in sync with currentPlayDuration above.
         player1.activatedAtDate = Date().addingTimeInterval(-120)
 

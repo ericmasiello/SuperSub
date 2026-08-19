@@ -550,7 +550,16 @@ extension TimerView {
         let now = Date()
         for index in 0..<playersToActivate where index < allFilteredPlayers.count {
             let player = allFilteredPlayers[index]
-            try? gameManager.transition(playerId: player.id, to: .active, in: game)
+            do {
+                try gameManager.transition(playerId: player.id, to: .active, in: game)
+            } catch {
+                // `player` was just pulled from this same context's query results, so
+                // `playerNotFound` here would mean a real programming bug, not a
+                // recoverable runtime state.
+                assertionFailure(
+                    "GameManager.transition failed for a player already resolved from the context: \(error)"
+                )
+            }
             player.status = .active
             player.activatedAtDate = now
             player.currentPlayDuration = 0
@@ -621,7 +630,17 @@ extension TimerView {
         // the swap into Game/Stint here, so the Game-derived duration values
         // (see PlayerActionsSheetView/row views) stay correct in the interim.
         if let game = currentGame {
-            try? gameManager.manualSubstitution(outgoing: subOut.id, incoming: subIn.id, game: game)
+            do {
+                try gameManager.manualSubstitution(outgoing: subOut.id, incoming: subIn.id, game: game)
+            } catch {
+                // Unlike the transition() sites above, the legacy path and this mirror
+                // aren't the same call, so a throw here is a real drift signal between
+                // Player.status/OrderManager and Game/Stint, not just a defensive check.
+                assertionFailure(
+                    "GameManager.manualSubstitution mirror failed, Game/Stint state has drifted from legacy path: "
+                        + "\(error)"
+                )
+            }
         }
 
         if let activeSession = sessions.first(where: { $0.isActive }) {
@@ -650,7 +669,11 @@ extension TimerView {
 
     func activatePlayer(_ player: Player) {
         guard let game = currentGame else { return }
-        try? gameManager.transition(playerId: player.id, to: .active, in: game)
+        do {
+            try gameManager.transition(playerId: player.id, to: .active, in: game)
+        } catch {
+            assertionFailure("GameManager.transition failed for a player already resolved from the context: \(error)")
+        }
 
         player.status = .active
         player.activatedAtDate = Date()
