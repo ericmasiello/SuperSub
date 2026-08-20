@@ -14,6 +14,7 @@ struct BenchSectionView: View {
     let players: [Player]
     let activePlayersCount: Int
     let maxActiveCount: Int
+    let totalPlayTime: (Player) -> TimeInterval
     let onPlayerTap: (Player) -> Void
     let onActivatePlayer: (Player) -> Void
     let onReorder: (([Player]) -> Void)?
@@ -90,6 +91,7 @@ struct BenchSectionView: View {
     private func playerRow(player: Player, index: Int) -> some View {
         BenchPlayerRowView(
             player: player,
+            totalPlayTime: totalPlayTime(player),
             isNextUp: index == 0,
             canActivate: canActivate,
             onTap: { onPlayerTap(player) },
@@ -116,14 +118,16 @@ struct BenchSectionView: View {
 // MARK: - Preview
 
 #Preview("With Bench Players") {
+    let totals: [String: TimeInterval] = ["John Doe": 180, "Jane Smith": 240, "Mike Johnson": 120]
     BenchSectionView(
         players: [
-            Player(name: "John Doe", totalPlayTime: 180, status: .benched),
-            Player(name: "Jane Smith", totalPlayTime: 240, status: .benched),
-            Player(name: "Mike Johnson", totalPlayTime: 120, status: .benched)
+            Player(name: "John Doe", status: .benched),
+            Player(name: "Jane Smith", status: .benched),
+            Player(name: "Mike Johnson", status: .benched)
         ],
         activePlayersCount: 4,
         maxActiveCount: 4,
+        totalPlayTime: { totals[$0.name] ?? 0 },
         onPlayerTap: { player in print("Tapped: \(player.name)") },
         onActivatePlayer: { player in print("Activate: \(player.name)") },
         onReorder: { players in print("Reordered: \(players.map { $0.name })") }
@@ -136,6 +140,7 @@ struct BenchSectionView: View {
         players: [],
         activePlayersCount: 4,
         maxActiveCount: 4,
+        totalPlayTime: { _ in 0 },
         onPlayerTap: { _ in },
         onActivatePlayer: { _ in },
         onReorder: nil
@@ -144,13 +149,15 @@ struct BenchSectionView: View {
 }
 
 #Preview("Can Activate") {
+    let totals: [String: TimeInterval] = ["John Doe": 180, "Jane Smith": 240]
     BenchSectionView(
         players: [
-            Player(name: "John Doe", totalPlayTime: 180, status: .benched),
-            Player(name: "Jane Smith", totalPlayTime: 240, status: .benched)
+            Player(name: "John Doe", status: .benched),
+            Player(name: "Jane Smith", status: .benched)
         ],
         activePlayersCount: 2,
         maxActiveCount: 4,
+        totalPlayTime: { totals[$0.name] ?? 0 },
         onPlayerTap: { _ in },
         onActivatePlayer: { _ in },
         onReorder: { _ in print("Reordered") }
@@ -159,13 +166,15 @@ struct BenchSectionView: View {
 }
 
 #Preview("Cannot Activate") {
+    let totals: [String: TimeInterval] = ["John Doe": 180, "Jane Smith": 240]
     BenchSectionView(
         players: [
-            Player(name: "John Doe", totalPlayTime: 180, status: .benched),
-            Player(name: "Jane Smith", totalPlayTime: 240, status: .benched)
+            Player(name: "John Doe", status: .benched),
+            Player(name: "Jane Smith", status: .benched)
         ],
         activePlayersCount: 4,
         maxActiveCount: 4,
+        totalPlayTime: { totals[$0.name] ?? 0 },
         onPlayerTap: { _ in },
         onActivatePlayer: { _ in },
         onReorder: nil
@@ -176,10 +185,11 @@ struct BenchSectionView: View {
 #Preview("Single Bench Player") {
     BenchSectionView(
         players: [
-            Player(name: "Solo Benched", totalPlayTime: 60, status: .benched)
+            Player(name: "Solo Benched", status: .benched)
         ],
         activePlayersCount: 3,
         maxActiveCount: 4,
+        totalPlayTime: { _ in 60 },
         onPlayerTap: { _ in },
         onActivatePlayer: { _ in },
         onReorder: nil

@@ -12,6 +12,7 @@ struct TemporarilyOutPlayerRowView: View {
     // MARK: - Properties
 
     let player: Player
+    let totalPlayTime: TimeInterval
     let onReturnToBench: () -> Void
 
     // MARK: - Body
@@ -21,7 +22,7 @@ struct TemporarilyOutPlayerRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(player.name)
                     .font(.headline)
-                Text("Total: \(TimeFormatter.format(player.totalPlayTime))")
+                Text("Total: \(TimeFormatter.format(totalPlayTime))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -52,7 +53,8 @@ struct TemporarilyOutPlayerRowView: View {
 
 #Preview("Temporarily Out Player") {
     TemporarilyOutPlayerRowView(
-        player: Player(name: "John Doe", totalPlayTime: 300),
+        player: Player(name: "John Doe"),
+        totalPlayTime: 300,
         onReturnToBench: { print("Return to bench tapped") }
     )
     .padding()
@@ -60,7 +62,8 @@ struct TemporarilyOutPlayerRowView: View {
 
 #Preview("High Play Time") {
     TemporarilyOutPlayerRowView(
-        player: Player(name: "Jane Smith", totalPlayTime: 600),
+        player: Player(name: "Jane Smith"),
+        totalPlayTime: 600,
         onReturnToBench: { print("Return to bench tapped") }
     )
     .padding()
@@ -68,7 +71,8 @@ struct TemporarilyOutPlayerRowView: View {
 
 #Preview("Low Play Time") {
     TemporarilyOutPlayerRowView(
-        player: Player(name: "Mike Johnson", totalPlayTime: 30),
+        player: Player(name: "Mike Johnson"),
+        totalPlayTime: 30,
         onReturnToBench: { print("Return to bench tapped") }
     )
     .padding()
@@ -76,7 +80,8 @@ struct TemporarilyOutPlayerRowView: View {
 
 #Preview("Zero Play Time") {
     TemporarilyOutPlayerRowView(
-        player: Player(name: "New Player", totalPlayTime: 0),
+        player: Player(name: "New Player"),
+        totalPlayTime: 0,
         onReturnToBench: { print("Return to bench tapped") }
     )
     .padding()

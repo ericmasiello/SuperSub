@@ -36,6 +36,17 @@ struct Substitution: Equatable {
     let incomingPlayerId: UUID
 }
 
+/// The old `Player.status`/`OrderManager`-driven rotation state, captured as
+/// input to `GameManager.seedFromLegacyStatus`. These five values only ever
+/// travel together, for that one purpose — see issue #60.
+struct LegacyRotationSnapshot {
+    let activePlayers: [Player]
+    let benchedPlayers: [Player]
+    let temporarilyOutPlayers: [Player]
+    let existingActiveOrder: [UUID]
+    let existingBenchOrder: [UUID]
+}
+
 /// Sole mutator of `Game.activeOrder`/`benchOrder`/`temporarilyOut` and sole
 /// opener/closer of `Stint`s. Plain (non-`@Model`) class — see #58: nothing in the
 /// app calls this yet, it operates purely on the dormant schema from #57 via an
@@ -180,5 +191,96 @@ final class GameManager {
             .reduce(0) { total, stint in
                 total + (stint.endDate ?? now).timeIntervalSince(stint.startDate)
             }
+    }
+
+    /// Resolves which `RotationBucket` `playerId` currently occupies in `game`.
+    /// Defaults to `.benched` when the player is in none of the three buckets
+    /// (e.g. a roster player never yet transitioned into this `Game`'s
+    /// rotation) — matching `Player.defaultStatus`'s old-model default, so a
+    /// player's very first appearance renders the same way under both models.
+    func status(playerId: UUID, in game: Game) -> RotationBucket {
+        if game.activeOrder.contains(playerId) {
+            return .active
+        }
+        if game.temporarilyOut.contains(playerId) {
+            return .temporarilyOut
+        }
+        return .benched
+    }
+
+    /// Replaces `bucket`'s order in `game` with `playerIds`, without changing
+    /// bucket membership — the caller is responsible for passing the same
+    /// membership, just reordered (e.g. drag-to-reorder). A `.temporarilyOut`
+    /// bucket is a no-op, since `Game.temporarilyOut` is an unordered `Set`.
+    /// Kept alongside `transition` so `Game.activeOrder`/`benchOrder` still
+    /// only ever change through `GameManager`.
+    func setOrder(_ playerIds: [UUID], for bucket: RotationBucket, in game: Game) {
+        switch bucket {
+        case .active:
+            game.activeOrder = playerIds
+        case .benched:
+            game.benchOrder = playerIds
+        case .temporarilyOut:
+            break
+        }
+    }
+
+    /// One-time migration bridge (see issue #60): seeds a freshly-created,
+    /// history-less `game`'s bucket membership and `Stint`s from the old
+    /// `Player.status`-driven model, so an in-progress rotation (or a
+    /// `--uitesting` fixture launch) carries over exactly instead of
+    /// resetting the first time `TimerView` starts operating on `Game`. Not
+    /// part of the ordinary `transition`/substitution API — only ever
+    /// called once, immediately after `game` is created.
+    ///
+    /// `snapshot.existingActiveOrder`/`existingBenchOrder` (typically the
+    /// legacy `OrderManager.playerOrder`) are preserved for players present
+    /// in each, so a coach's existing custom order survives. Each player's
+    /// prior `totalPlayTime` becomes a closed, synthetic `Stint` (only its
+    /// duration matters — `totalPlayTime`/`currentPlayDuration` are always
+    /// derived by summing `Stint`s, never by a `Stint`'s actual dates); an
+    /// `.active` player additionally gets a second, open `Stint` starting
+    /// at their existing `activatedAtDate`, so their current segment's
+    /// elapsed time carries over too.
+    func seedFromLegacyStatus(_ snapshot: LegacyRotationSnapshot, in game: Game) {
+        game.activeOrder = preservingOrder(of: snapshot.activePlayers, matching: snapshot.existingActiveOrder)
+        game.benchOrder = preservingOrder(of: snapshot.benchedPlayers, matching: snapshot.existingBenchOrder)
+        game.temporarilyOut = Set(snapshot.temporarilyOutPlayers.map { $0.id })
+
+        var stints: [Stint] = []
+        for player in snapshot.benchedPlayers + snapshot.temporarilyOutPlayers {
+            if let historicalStint = historicalStint(for: player, in: game) {
+                stints.append(historicalStint)
+            }
+        }
+        for player in snapshot.activePlayers {
+            if let historicalStint = historicalStint(for: player, in: game) {
+                stints.append(historicalStint)
+            }
+            stints.append(Stint(startDate: player.activatedAtDate, player: player, game: game))
+        }
+
+        for stint in stints {
+            context.insert(stint)
+        }
+        game.stints = stints
+    }
+
+    /// A closed `Stint` whose duration equals `player.totalPlayTime`, or
+    /// `nil` when there's nothing to carry over. Start/end dates are
+    /// otherwise arbitrary, ending at `Date()` so it never reads as
+    /// still-open.
+    private func historicalStint(for player: Player, in game: Game) -> Stint? {
+        guard player.totalPlayTime > 0 else { return nil }
+        let end = Date()
+        return Stint(startDate: end.addingTimeInterval(-player.totalPlayTime), endDate: end, player: player, game: game)
+    }
+
+    private func preservingOrder(of matchingPlayers: [Player], matching existingOrder: [UUID]) -> [UUID] {
+        let matchedIds = Set(matchingPlayers.map { $0.id })
+        let ordered = existingOrder.filter { matchedIds.contains($0) }
+        let orderedSet = Set(ordered)
+        let remaining = matchingPlayers.filter { !orderedSet.contains($0.id) }.map { $0.id }
+        return ordered + remaining
     }
 }

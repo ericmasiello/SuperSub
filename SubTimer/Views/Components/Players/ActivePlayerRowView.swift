@@ -12,6 +12,7 @@ struct ActivePlayerRowView: View {
     // MARK: - Properties
 
     let player: Player
+    let currentPlayDuration: TimeInterval
     let isNextToSubOut: Bool
     let onTap: () -> Void
 
@@ -30,7 +31,7 @@ struct ActivePlayerRowView: View {
                             .accessibilityLabel("Next to Sub Out")
                     }
                 }
-                Text(TimeFormatter.format(player.currentPlayDuration))
+                Text(TimeFormatter.format(currentPlayDuration))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -55,7 +56,8 @@ struct ActivePlayerRowView: View {
 
 #Preview("Normal Active Player") {
     ActivePlayerRowView(
-        player: Player(name: "John Doe", currentPlayDuration: 120),
+        player: Player(name: "John Doe"),
+        currentPlayDuration: 120,
         isNextToSubOut: false,
         onTap: { print("Player tapped") }
     )
@@ -64,7 +66,8 @@ struct ActivePlayerRowView: View {
 
 #Preview("Next to Sub Out") {
     ActivePlayerRowView(
-        player: Player(name: "Jane Smith", currentPlayDuration: 180),
+        player: Player(name: "Jane Smith"),
+        currentPlayDuration: 180,
         isNextToSubOut: true,
         onTap: { print("Player tapped") }
     )
@@ -73,7 +76,8 @@ struct ActivePlayerRowView: View {
 
 #Preview("Long Play Time") {
     ActivePlayerRowView(
-        player: Player(name: "Mike Johnson", currentPlayDuration: 450),
+        player: Player(name: "Mike Johnson"),
+        currentPlayDuration: 450,
         isNextToSubOut: true,
         onTap: { print("Player tapped") }
     )
@@ -82,7 +86,8 @@ struct ActivePlayerRowView: View {
 
 #Preview("Zero Time") {
     ActivePlayerRowView(
-        player: Player(name: "Sarah Williams", currentPlayDuration: 0),
+        player: Player(name: "Sarah Williams"),
+        currentPlayDuration: 0,
         isNextToSubOut: false,
         onTap: { print("Player tapped") }
     )

@@ -6,8 +6,11 @@ The persisted model is mid-transition between two shapes:
   all current app behavior. Of these, `Player` continues to exist once the
   transition is complete; `Session`, `OrderManager`, and `AppConfiguration`
   are expected to be superseded by the dormant types below.
-- **Present but dormant:** `Team`, `RosterMembership`, `Game`, `Stint` —
-  declared in the schema; no app code reads or writes them yet.
+- **Partially in use:** `Team`, `RosterMembership`, `Game`, `Stint` —
+  `TimerView`'s activate/mark-temporarily-out/return-to-bench actions and
+  Active/Bench/Temporarily-Out section rendering read/write these via
+  `GameManager` (#60); `RosterMembership` and Substitution's own bucket/Stint
+  bookkeeping remain unread/unwritten by app UI until later tickets.
 
 ```mermaid
 classDiagram
@@ -181,3 +184,63 @@ sequenceDiagram
         Plan-->>App: migration complete
     end
 ```
+
+## TimerView rewired onto GameManager (#60)
+
+`TimerView`'s activate, mark-temporarily-out, and return-to-bench actions —
+plus Active/Bench/Temporarily-Out section rendering — now go through
+`GameManager` against an open `Game`, instead of `Player.status`/
+`OrderManager`. Two additions to `GameManager` support this:
+`status(playerId:in:) -> RotationBucket` (defaults to `.benched` when a
+player is in none of the three buckets, matching `Player.defaultStatus`) and
+`setOrder(_:for:in:)` (drag-to-reorder, replacing a bucket's order without
+changing membership — `.temporarilyOut` is a no-op, since it's an unordered
+`Set`).
+
+`TimerView` resolves-or-creates its `Game` eagerly, on `.onAppear`. A fresh
+`Game` is only created when no open one exists for the app's `Team` — for a
+real upgrading user, migration (#59) only produces closed, historical
+`Game`s, so a fresh `Game` is bootstrapped once from each player's current
+`Player.status`/`activatedAtDate`/`OrderManager` order, carrying an
+in-progress rotation into the new model without resetting it.
+
+Substitution (still out of scope for a full rewire until #61) keeps its
+existing `Player.status`/`OrderManager` writes, but also calls
+`GameManager.manualSubstitution` in parallel (for both the automatic and
+manual flows - `TimerView` already resolves the specific outgoing/incoming
+pair before either reaches this call, so there's no separate need for
+`GameManager.automaticSubstitution`'s own pairing logic here), so the
+`Game`/`Stint` state this ticket's display path depends on doesn't drift out
+of sync with a substitution performed through the old path. `activatePlayer`/
+`markPlayerTemporarilyOut`/`returnPlayerToBench` similarly keep a
+display-only `Player.status` mirror write (never read back by `TimerView`)
+purely so `SettingsView` — unrewired until #62 — doesn't show stale status;
+this mirror is tracked as tech debt to remove alongside `Player.status`'s
+deletion in #62.
+
+```mermaid
+sequenceDiagram
+    participant Coach
+    participant TimerView
+    participant GameManager
+    participant Game
+    participant Stint
+    participant Section as Active/Bench/TempOut SectionView
+
+    Coach->>TimerView: tap Activate / Mark Temporarily Out / Return to Bench
+    TimerView->>GameManager: transition(playerId, to: bucket, in: game)
+    GameManager->>Game: purge playerId from old bucket, insert into new bucket
+    GameManager->>Stint: close open Stint (leaving Active) or open new Stint (entering Active)
+    GameManager-->>TimerView: updated Game/Stint state
+
+    TimerView->>GameManager: status(playerId, in: game), currentPlayDuration/totalPlayTime(playerId, in: game)
+    GameManager-->>TimerView: resolved status + duration
+    TimerView->>Section: pass resolved status/duration as parameters
+    Section-->>Coach: renders - identical to today, no direct player.status/currentPlayDuration reads
+```
+
+Substitution stays on its existing path for its own display logic here — see
+#61 for the follow-on ticket that rewires Substitution and the Live Activity
+feed fully onto `GameManager`, at which point `Player.status`/
+`currentPlayDuration`/`totalPlayTime`/`OrderManager` will have no remaining
+references anywhere in `TimerView`.

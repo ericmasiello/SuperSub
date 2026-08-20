@@ -98,12 +98,13 @@ struct TimerView: View {
     @Query private var configurations: [AppConfiguration]
     @Query(sort: \Session.startDate, order: .reverse) var sessions: [Session]
     @Query private var orderManagers: [OrderManager]
+    @Query private var teams: [Team]
+    @Query private var games: [Game]
 
     @State var timerViewModel: TimerViewModel?
     @State private var activeSheet: TimerSheet?
-    @State private var benchOrder: [UUID] = []
-    @State private var activeOrder: [UUID] = []
     @State private var cachedManagers: [PlayerOrderRole: OrderManager] = [:]
+    @State private var currentGame: Game?
     @State private var showPinnedButton = false
     @State private var overtimeUpdateWork: DispatchWorkItem?
     @State private var showCompactTimer = false
@@ -117,6 +118,26 @@ struct TimerView: View {
             return newConfig
         }
     }
+
+    /// The app's one auto-created `Team` (per #59's migration guarantee) —
+    /// lazily created here to also cover installs where migration never ran
+    /// (a fresh install, or `--uitesting`'s in-memory fixture store), since
+    /// neither of those goes through `SchemaMigrationPlan`.
+    var team: Team {
+        if let existing = teams.first {
+            return existing
+        }
+        let newTeam = Team(
+            name: "",
+            sport: "",
+            preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
+            activePlayersCount: configuration.activePlayersCount
+        )
+        modelContext.insert(newTeam)
+        return newTeam
+    }
+
+    var gameManager: GameManager { GameManager(context: modelContext) }
 
     func orderManager(for role: PlayerOrderRole) -> OrderManager {
         if let cached = cachedManagers[role] {
@@ -140,15 +161,12 @@ struct TimerView: View {
     var activeManager: OrderManager { orderManager(for: .active) }
 
     var activePlayers: [Player] {
-        let active = players.filter { $0.status == .active }
-
-        let orderToUse = activeOrder.isEmpty
-            ? (orderManagers.first(where: { $0.role == .active })?.playerOrder ?? [])
-            : activeOrder
+        guard let game = currentGame else { return [] }
+        let active = players.filter { gameManager.status(playerId: $0.id, in: game) == .active }
 
         return active.sorted { player1, player2 in
-            let pos1 = orderToUse.firstIndex(of: player1.id)
-            let pos2 = orderToUse.firstIndex(of: player2.id)
+            let pos1 = game.activeOrder.firstIndex(of: player1.id)
+            let pos2 = game.activeOrder.firstIndex(of: player2.id)
 
             if let pos1, let pos2 {
                 return pos1 < pos2
@@ -157,23 +175,19 @@ struct TimerView: View {
             } else if pos2 != nil {
                 return false
             } else {
-                return player1.currentPlayDuration > player2.currentPlayDuration
+                return gameManager.currentPlayDuration(playerId: player1.id, in: game)
+                    > gameManager.currentPlayDuration(playerId: player2.id, in: game)
             }
         }
     }
 
     var benchedPlayers: [Player] {
-        let benched = players.filter { $0.status == .benched }
+        guard let game = currentGame else { return [] }
+        let benched = players.filter { gameManager.status(playerId: $0.id, in: game) == .benched }
 
-        // Use the state-managed bench order for immediate UI updates
-        let orderToUse = benchOrder.isEmpty
-            ? (orderManagers.first(where: { $0.role == .bench })?.playerOrder ?? [])
-            : benchOrder
-
-        // Sort by bench order, then by sortOrder for players not in the bench order
         return benched.sorted { player1, player2 in
-            let pos1 = orderToUse.firstIndex(of: player1.id)
-            let pos2 = orderToUse.firstIndex(of: player2.id)
+            let pos1 = game.benchOrder.firstIndex(of: player1.id)
+            let pos2 = game.benchOrder.firstIndex(of: player2.id)
 
             if let pos1, let pos2 {
                 return pos1 < pos2
@@ -187,8 +201,13 @@ struct TimerView: View {
         }
     }
 
+    /// `Game.temporarilyOut` is an unordered `Set`, so this relies on
+    /// `players` already being `@Query(sort: \Player.sortOrder)` for a
+    /// stable, roster-order display - matching this section's old
+    /// `Player.status`-filtered behavior exactly.
     var temporarilyOutPlayers: [Player] {
-        players.filter { $0.status == .temporarilyOut }
+        guard let game = currentGame else { return [] }
+        return players.filter { gameManager.status(playerId: $0.id, in: game) == .temporarilyOut }
     }
 
     var body: some View {
@@ -206,10 +225,7 @@ struct TimerView: View {
                 _ = benchManager
                 _ = activeManager
                 initializeViewModel(allPlayers: players)
-                syncOrderManager(role: .bench, status: .benched)
-                syncOrderManager(role: .active, status: .active)
-                loadOrder(for: .bench)
-                loadOrder(for: .active)
+                resolveOrCreateGame()
             }
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
@@ -348,6 +364,7 @@ struct TimerView: View {
         ActivePlayersSectionView(
             players: activePlayers,
             maxActiveCount: configuration.activePlayersCount,
+            currentPlayDuration: { resolvedCurrentPlayDuration(for: $0) },
             onPlayerTap: { player in activeSheet = .playerActions(player) },
             onReorder: { self.reorderPlayers($0, role: .active) }
         )
@@ -360,6 +377,7 @@ struct TimerView: View {
             players: benchedPlayers,
             activePlayersCount: activePlayers.count,
             maxActiveCount: configuration.activePlayersCount,
+            totalPlayTime: { resolvedTotalPlayTime(for: $0) },
             onPlayerTap: { player in activeSheet = .playerActions(player) },
             onActivatePlayer: activatePlayer,
             onReorder: { self.reorderPlayers($0, role: .bench) }
@@ -371,8 +389,23 @@ struct TimerView: View {
     private var temporarilyOutSection: some View {
         TemporarilyOutSectionView(
             players: temporarilyOutPlayers,
+            totalPlayTime: { resolvedTotalPlayTime(for: $0) },
             onReturnToBench: returnPlayerToBench
         )
+    }
+
+    /// `GameManager.currentPlayDuration`/`totalPlayTime` resolved for a
+    /// single `player`, so section/row views receive display values as
+    /// parameters instead of reading `Player.currentPlayDuration`/
+    /// `totalPlayTime` directly (see issue #60).
+    private func resolvedCurrentPlayDuration(for player: Player) -> TimeInterval {
+        guard let game = currentGame else { return 0 }
+        return gameManager.currentPlayDuration(playerId: player.id, in: game)
+    }
+
+    private func resolvedTotalPlayTime(for player: Player) -> TimeInterval {
+        guard let game = currentGame else { return 0 }
+        return gameManager.totalPlayTime(playerId: player.id, in: game)
     }
 
     // MARK: - Substitute Button
@@ -406,8 +439,12 @@ struct TimerView: View {
     // MARK: - Player Actions Sheet
 
     private func playerActionsSheet(player: Player) -> some View {
-        PlayerActionsSheetView(
+        let status = currentGame.map { gameManager.status(playerId: player.id, in: $0) } ?? .benched
+        return PlayerActionsSheetView(
             player: player,
+            status: status,
+            currentPlayDuration: resolvedCurrentPlayDuration(for: player),
+            totalPlayTime: resolvedTotalPlayTime(for: player),
             canActivate: activePlayers.count < configuration.activePlayersCount,
             onSubstituteOut: {
                 activeSheet = .manualSubstitution(playerToSubOut: player)
@@ -445,45 +482,45 @@ extension TimerView {
         timerViewModel?.onTimerTick = { updatePlayerTimes() }
     }
 
-    /// Syncs a role-scoped order (players is already `@Query(sort: \Player.sortOrder)`,
-    /// so filtering it preserves roster order) against current player statuses: adds
-    /// players missing from the order, drops ones that changed status.
-    func syncOrderManager(role: PlayerOrderRole, status: PlayerStatus) {
-        let manager = orderManager(for: role)
-        let currentPlayers = players.filter { $0.status == status }
+    /// Resolves `currentGame` to the `Team`'s open `Game` (no `endDate` yet),
+    /// or creates one. A fresh `Game` only exists here (no open `Game` found)
+    /// in two cases: a real user's very first launch after this ticket ships
+    /// (migration only produces closed, historical `Game`s from old
+    /// `Session`s - never an open one), or the `--uitesting` fixture launch
+    /// (no `Team`/`Game` at all). `GameManager.seedFromLegacyStatus` bridges
+    /// both by carrying the current `Player.status`-driven state into the
+    /// new `Game` exactly once, at creation.
+    func resolveOrCreateGame() {
+        guard currentGame == nil else { return }
+        let resolvedTeam = team
 
-        for player in currentPlayers where manager.position(of: player.id) == nil {
-            manager.addPlayer(player.id)
+        if let openGame = games.first(where: { $0.team?.id == resolvedTeam.id && $0.endDate == nil }) {
+            currentGame = openGame
+            return
         }
 
-        let currentIds = Set(currentPlayers.map { $0.id })
-        manager.playerOrder.removeAll { !currentIds.contains($0) }
-        manager.updatedDate = Date()
-    }
-
-    func loadOrder(for role: PlayerOrderRole) {
-        switch role {
-        case .bench:
-            benchOrder = orderManager(for: role).playerOrder
-        case .active:
-            activeOrder = orderManager(for: role).playerOrder
-        }
+        let newGame = Game(
+            preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
+            activePlayersCount: configuration.activePlayersCount,
+            team: resolvedTeam
+        )
+        modelContext.insert(newGame)
+        let snapshot = LegacyRotationSnapshot(
+            activePlayers: players.filter { $0.status == .active },
+            benchedPlayers: players.filter { $0.status == .benched },
+            temporarilyOutPlayers: players.filter { $0.status == .temporarilyOut },
+            existingActiveOrder: activeManager.playerOrder,
+            existingBenchOrder: benchManager.playerOrder
+        )
+        gameManager.seedFromLegacyStatus(snapshot, in: newGame)
+        currentGame = newGame
     }
 
     func reorderPlayers(_ reorderedPlayers: [Player], role: PlayerOrderRole) {
+        guard let game = currentGame else { return }
         let newOrder = reorderedPlayers.map { $0.id }
-
-        switch role {
-        case .bench:
-            benchOrder = newOrder
-        case .active:
-            activeOrder = newOrder
-        }
-
-        let manager = orderManager(for: role)
-        manager.playerOrder.removeAll()
-        manager.playerOrder.append(contentsOf: newOrder)
-        manager.updatedDate = Date()
+        let bucket: RotationBucket = role == .active ? .active : .benched
+        gameManager.setOrder(newOrder, for: bucket, in: game)
     }
 
     func toggleTimer() {
@@ -507,17 +544,26 @@ extension TimerView {
     }
 
     private func autoActivateInitialPlayersIfNeeded() {
-        guard activePlayers.isEmpty else { return }
+        guard let game = currentGame, activePlayers.isEmpty else { return }
         let allFilteredPlayers = activePlayers + benchedPlayers + temporarilyOutPlayers
         let playersToActivate = min(configuration.activePlayersCount, allFilteredPlayers.count)
         let now = Date()
         for index in 0..<playersToActivate where index < allFilteredPlayers.count {
-            allFilteredPlayers[index].status = .active
-            allFilteredPlayers[index].activatedAtDate = now
-            allFilteredPlayers[index].currentPlayDuration = 0
-            activeManager.addPlayer(allFilteredPlayers[index].id)
+            let player = allFilteredPlayers[index]
+            do {
+                try gameManager.transition(playerId: player.id, to: .active, in: game)
+            } catch {
+                // `player` was just pulled from this same context's query results, so
+                // `playerNotFound` here would mean a real programming bug, not a
+                // recoverable runtime state.
+                assertionFailure(
+                    "GameManager.transition failed for a player already resolved from the context: \(error)"
+                )
+            }
+            player.status = .active
+            player.activatedAtDate = now
+            player.currentPlayDuration = 0
         }
-        activeOrder = activeManager.playerOrder
     }
 
     private func updatePlayerTimes() {
@@ -575,11 +621,27 @@ extension TimerView {
 
         benchManager.removePlayer(subIn.id)
         benchManager.addPlayer(subOut.id)
-        benchOrder = benchManager.playerOrder
 
         activeManager.removePlayer(subOut.id)
         activeManager.addPlayer(subIn.id)
-        activeOrder = activeManager.playerOrder
+
+        // Substitution stays on the Player.status/OrderManager path above
+        // (rewiring it fully onto GameManager is #61's job) but also mirrors
+        // the swap into Game/Stint here, so the Game-derived duration values
+        // (see PlayerActionsSheetView/row views) stay correct in the interim.
+        if let game = currentGame {
+            do {
+                try gameManager.manualSubstitution(outgoing: subOut.id, incoming: subIn.id, game: game)
+            } catch {
+                // Unlike the transition() sites above, the legacy path and this mirror
+                // aren't the same call, so a throw here is a real drift signal between
+                // Player.status/OrderManager and Game/Stint, not just a defensive check.
+                assertionFailure(
+                    "GameManager.manualSubstitution mirror failed, Game/Stint state has drifted from legacy path: "
+                        + "\(error)"
+                )
+            }
+        }
 
         if let activeSession = sessions.first(where: { $0.isActive }) {
             activeSession.substitutionCount += 1
@@ -598,32 +660,45 @@ extension TimerView {
         }
     }  // MARK: - Player Status
 
+    // Activate/mark-temporarily-out/return-to-bench read/write Game via
+    // GameManager exclusively now (issue #60) - the Player.status write in
+    // each is a display-only mirror for SettingsView, which still reads
+    // Player.status directly until #62 rewires it onto TeamManager/Game;
+    // TimerView itself never reads these three fields back. Tracked as
+    // tech debt to remove in #62 alongside Player.status's deletion.
+
     func activatePlayer(_ player: Player) {
+        guard let game = currentGame else { return }
+        do {
+            try gameManager.transition(playerId: player.id, to: .active, in: game)
+        } catch {
+            assertionFailure("GameManager.transition failed for a player already resolved from the context: \(error)")
+        }
+
         player.status = .active
         player.activatedAtDate = Date()
         player.currentPlayDuration = 0
-        benchManager.removePlayer(player.id)
-        benchOrder = benchManager.playerOrder
-        activeManager.addPlayer(player.id)
-        activeOrder = activeManager.playerOrder
         updateLiveActivity()
     }
 
     func markPlayerTemporarilyOut(_ player: Player) {
-        if player.status == .active {
+        guard let game = currentGame else { return }
+        let wasActive = gameManager.status(playerId: player.id, in: game) == .active
+        try? gameManager.transition(playerId: player.id, to: .temporarilyOut, in: game)
+
+        if wasActive {
             let timePlayedThisSegment = Date().timeIntervalSince(player.activatedAtDate)
             player.totalPlayTime += timePlayedThisSegment
-            activeManager.removePlayer(player.id)
-            activeOrder = activeManager.playerOrder
         }
         player.status = .temporarilyOut
         updateLiveActivity()
     }
 
     func returnPlayerToBench(_ player: Player) {
+        guard let game = currentGame else { return }
+        try? gameManager.transition(playerId: player.id, to: .benched, in: game)
+
         player.status = .benched
-        benchManager.addPlayer(player.id)
-        benchOrder = benchManager.playerOrder
         updateLiveActivity()
     }
 
@@ -721,9 +796,17 @@ extension TimerView {
     }
 }
 
+/// Registers the full app schema (see `SchemaV2.models`) so `TimerView`'s
+/// `@Query`s for `OrderManager`/`Team`/`Game`/`Stint` don't crash at preview
+/// render time.
+private let previewSchemaModels: [any PersistentModel.Type] = [
+    Player.self, AppConfiguration.self, Session.self, OrderManager.self,
+    Team.self, RosterMembership.self, Game.self, Stint.self
+]
+
 #Preview("Empty State") {
     TimerView()
-        .modelContainer(for: [Player.self, AppConfiguration.self, Session.self], inMemory: true)
+        .modelContainer(for: previewSchemaModels, inMemory: true)
 }
 
 /// Preview providers are compile-time-only and never execute in a shipped
@@ -733,7 +816,7 @@ extension TimerView {
 private func makeMainTimerPreviewContainer() -> ModelContainer {
     // swiftlint:disable:next force_try
     let container = try! ModelContainer(
-        for: Player.self, AppConfiguration.self, Session.self,
+        for: Schema(previewSchemaModels),
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
@@ -749,14 +832,17 @@ private func makeMainTimerPreviewContainer() -> ModelContainer {
     let player1 = Player(name: "Alice", sortOrder: 0)
     player1.status = .active
     player1.currentPlayDuration = 120
+    player1.activatedAtDate = Date().addingTimeInterval(-120)
 
     let player2 = Player(name: "Bob", sortOrder: 1)
     player2.status = .active
     player2.currentPlayDuration = 95
+    player2.activatedAtDate = Date().addingTimeInterval(-95)
 
     let player3 = Player(name: "Charlie", sortOrder: 2)
     player3.status = .active
     player3.currentPlayDuration = 110
+    player3.activatedAtDate = Date().addingTimeInterval(-110)
 
     let player4 = Player(name: "Diana", sortOrder: 3)
     player4.status = .benched

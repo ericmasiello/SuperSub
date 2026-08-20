@@ -13,6 +13,7 @@ struct ActivePlayersSectionView: View {
 
     let players: [Player]
     let maxActiveCount: Int
+    let currentPlayDuration: (Player) -> TimeInterval
     let onPlayerTap: (Player) -> Void
     let onReorder: (([Player]) -> Void)?
 
@@ -74,6 +75,7 @@ struct ActivePlayersSectionView: View {
     private func playerRow(player: Player, index: Int) -> some View {
         ActivePlayerRowView(
             player: player,
+            currentPlayDuration: currentPlayDuration(player),
             isNextToSubOut: isNextToSubOut(index),
             onTap: { onPlayerTap(player) }
         )
@@ -111,14 +113,18 @@ struct ActivePlayersSectionView: View {
 // MARK: - Preview
 
 #Preview("With Active Players") {
+    let durations: [String: TimeInterval] = [
+        "John Doe": 120, "Jane Smith": 180, "Mike Johnson": 90, "Sarah Williams": 150
+    ]
     ActivePlayersSectionView(
         players: [
-            Player(name: "John Doe", currentPlayDuration: 120, status: .active),
-            Player(name: "Jane Smith", currentPlayDuration: 180, status: .active),
-            Player(name: "Mike Johnson", currentPlayDuration: 90, status: .active),
-            Player(name: "Sarah Williams", currentPlayDuration: 150, status: .active)
+            Player(name: "John Doe", status: .active),
+            Player(name: "Jane Smith", status: .active),
+            Player(name: "Mike Johnson", status: .active),
+            Player(name: "Sarah Williams", status: .active)
         ],
         maxActiveCount: 4,
+        currentPlayDuration: { durations[$0.name] ?? 0 },
         onPlayerTap: { player in print("Tapped: \(player.name)") },
         onReorder: { players in print("Reordered: \(players.map { $0.name })") }
     )
@@ -129,6 +135,7 @@ struct ActivePlayersSectionView: View {
     ActivePlayersSectionView(
         players: [],
         maxActiveCount: 4,
+        currentPlayDuration: { _ in 0 },
         onPlayerTap: { _ in },
         onReorder: nil
     )
@@ -138,9 +145,10 @@ struct ActivePlayersSectionView: View {
 #Preview("Single Player") {
     ActivePlayersSectionView(
         players: [
-            Player(name: "Solo Player", currentPlayDuration: 200, status: .active)
+            Player(name: "Solo Player", status: .active)
         ],
         maxActiveCount: 4,
+        currentPlayDuration: { _ in 200 },
         onPlayerTap: { _ in },
         onReorder: nil
     )
@@ -148,13 +156,15 @@ struct ActivePlayersSectionView: View {
 }
 
 #Preview("At Capacity") {
+    let durations: [String: TimeInterval] = ["Player 1": 120, "Player 2": 180, "Player 3": 90]
     ActivePlayersSectionView(
         players: [
-            Player(name: "Player 1", currentPlayDuration: 120, status: .active),
-            Player(name: "Player 2", currentPlayDuration: 180, status: .active),
-            Player(name: "Player 3", currentPlayDuration: 90, status: .active)
+            Player(name: "Player 1", status: .active),
+            Player(name: "Player 2", status: .active),
+            Player(name: "Player 3", status: .active)
         ],
         maxActiveCount: 3,
+        currentPlayDuration: { durations[$0.name] ?? 0 },
         onPlayerTap: { _ in },
         onReorder: { _ in print("Reordered") }
     )
@@ -162,12 +172,14 @@ struct ActivePlayersSectionView: View {
 }
 
 #Preview("Under Capacity") {
+    let durations: [String: TimeInterval] = ["Player 1": 120, "Player 2": 180]
     ActivePlayersSectionView(
         players: [
-            Player(name: "Player 1", currentPlayDuration: 120, status: .active),
-            Player(name: "Player 2", currentPlayDuration: 180, status: .active)
+            Player(name: "Player 1", status: .active),
+            Player(name: "Player 2", status: .active)
         ],
         maxActiveCount: 5,
+        currentPlayDuration: { durations[$0.name] ?? 0 },
         onPlayerTap: { _ in },
         onReorder: nil
     )
