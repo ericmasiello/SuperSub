@@ -97,13 +97,11 @@ struct TimerView: View {
     @Query(sort: \Player.sortOrder) var players: [Player]
     @Query private var configurations: [AppConfiguration]
     @Query(sort: \Session.startDate, order: .reverse) var sessions: [Session]
-    @Query private var orderManagers: [OrderManager]
     @Query private var teams: [Team]
     @Query private var games: [Game]
 
     @State var timerViewModel: TimerViewModel?
     @State private var activeSheet: TimerSheet?
-    @State private var cachedManagers: [PlayerOrderRole: OrderManager] = [:]
     @State private var currentGame: Game?
     @State private var showPinnedButton = false
     @State private var overtimeUpdateWork: DispatchWorkItem?
@@ -138,27 +136,6 @@ struct TimerView: View {
     }
 
     var gameManager: GameManager { GameManager(context: modelContext) }
-
-    func orderManager(for role: PlayerOrderRole) -> OrderManager {
-        if let cached = cachedManagers[role] {
-            return cached
-        }
-
-        if let manager = orderManagers.first(where: { $0.role == role }) {
-            cachedManagers[role] = manager
-            return manager
-        } else {
-            let newManager = OrderManager(role: role)
-            modelContext.insert(newManager)
-            try? modelContext.save()
-            cachedManagers[role] = newManager
-            return newManager
-        }
-    }
-
-    var benchManager: OrderManager { orderManager(for: .bench) }
-
-    var activeManager: OrderManager { orderManager(for: .active) }
 
     var activePlayers: [Player] {
         guard let game = currentGame else { return [] }
@@ -221,9 +198,6 @@ struct TimerView: View {
             }
             .navigationTitle("Super Sub")
             .onAppear {
-                // Initialize cached managers first
-                _ = benchManager
-                _ = activeManager
                 initializeViewModel(allPlayers: players)
                 resolveOrCreateGame()
             }
@@ -484,12 +458,23 @@ extension TimerView {
 
     /// Resolves `currentGame` to the `Team`'s open `Game` (no `endDate` yet),
     /// or creates one. A fresh `Game` only exists here (no open `Game` found)
-    /// in two cases: a real user's very first launch after this ticket ships
+    /// in two cases: a real user's very first launch after #60 shipped
     /// (migration only produces closed, historical `Game`s from old
     /// `Session`s - never an open one), or the `--uitesting` fixture launch
     /// (no `Team`/`Game` at all). `GameManager.seedFromLegacyStatus` bridges
     /// both by carrying the current `Player.status`-driven state into the
-    /// new `Game` exactly once, at creation.
+    /// new `Game` exactly once, at creation - this one-time read of
+    /// `Player.status` is the sole exception to #61's removal of
+    /// `Player.status`/`currentPlayDuration`/`totalPlayTime`/`OrderManager`
+    /// from the rest of this view: it's the historical migration bridge, not
+    /// an ongoing mirror, and both the `--uitesting` fixture
+    /// (`SubTimerApp.setupTestData`) and `TimerViewUITests` depend on it
+    /// seeding bucket membership correctly. `OrderManager`'s prior custom
+    /// order is no longer preserved here now that #61 removes `OrderManager`
+    /// from this view entirely - a one-time bootstrap falls back to roster
+    /// (`Player.sortOrder`) order instead, same as `seedFromLegacyStatus`
+    /// already does for any player missing from `existingActiveOrder`/
+    /// `existingBenchOrder`.
     func resolveOrCreateGame() {
         guard currentGame == nil else { return }
         let resolvedTeam = team
@@ -509,8 +494,8 @@ extension TimerView {
             activePlayers: players.filter { $0.status == .active },
             benchedPlayers: players.filter { $0.status == .benched },
             temporarilyOutPlayers: players.filter { $0.status == .temporarilyOut },
-            existingActiveOrder: activeManager.playerOrder,
-            existingBenchOrder: benchManager.playerOrder
+            existingActiveOrder: [],
+            existingBenchOrder: []
         )
         gameManager.seedFromLegacyStatus(snapshot, in: newGame)
         currentGame = newGame
@@ -547,7 +532,6 @@ extension TimerView {
         guard let game = currentGame, activePlayers.isEmpty else { return }
         let allFilteredPlayers = activePlayers + benchedPlayers + temporarilyOutPlayers
         let playersToActivate = min(configuration.activePlayersCount, allFilteredPlayers.count)
-        let now = Date()
         for index in 0..<playersToActivate where index < allFilteredPlayers.count {
             let player = allFilteredPlayers[index]
             do {
@@ -560,18 +544,11 @@ extension TimerView {
                     "GameManager.transition failed for a player already resolved from the context: \(error)"
                 )
             }
-            player.status = .active
-            player.activatedAtDate = now
-            player.currentPlayDuration = 0
         }
     }
 
     private func updatePlayerTimes() {
         let now = Date()
-
-        for player in activePlayers {
-            player.currentPlayDuration = now.timeIntervalSince(player.activatedAtDate)
-        }
 
         if let activeSession = sessions.first(where: { $0.isActive }) {
             activeSession.duration = now.timeIntervalSince(activeSession.startDate)
@@ -603,42 +580,25 @@ extension TimerView {
     }
 
     private func performSubstitution(subOut: Player, subIn: Player) {
-        let now = Date()
         let wasRunning = timerViewModel?.isRunning ?? false
 
         if wasRunning {
             timerViewModel?.pauseTimer()
         }
 
-        let timePlayedThisSegment = now.timeIntervalSince(subOut.activatedAtDate)
-        subOut.totalPlayTime += timePlayedThisSegment
-        subOut.status = .benched
-        subOut.currentPlayDuration = 0
-
-        subIn.status = .active
-        subIn.activatedAtDate = now
-        subIn.currentPlayDuration = 0
-
-        benchManager.removePlayer(subIn.id)
-        benchManager.addPlayer(subOut.id)
-
-        activeManager.removePlayer(subOut.id)
-        activeManager.addPlayer(subIn.id)
-
-        // Substitution stays on the Player.status/OrderManager path above
-        // (rewiring it fully onto GameManager is #61's job) but also mirrors
-        // the swap into Game/Stint here, so the Game-derived duration values
-        // (see PlayerActionsSheetView/row views) stay correct in the interim.
+        // GameManager is the sole substitution path (issue #61): it closes
+        // subOut's open Stint (adding its duration to their total), opens a
+        // fresh zero-duration Stint for subIn, and moves both players
+        // between Game.activeOrder/benchOrder in one call. subOut/subIn are
+        // always resolved from activePlayers/benchedPlayers (themselves
+        // derived from gameManager.status), so a thrown error here would
+        // mean a real programming bug, not a recoverable runtime state.
         if let game = currentGame {
             do {
                 try gameManager.manualSubstitution(outgoing: subOut.id, incoming: subIn.id, game: game)
             } catch {
-                // Unlike the transition() sites above, the legacy path and this mirror
-                // aren't the same call, so a throw here is a real drift signal between
-                // Player.status/OrderManager and Game/Stint, not just a defensive check.
                 assertionFailure(
-                    "GameManager.manualSubstitution mirror failed, Game/Stint state has drifted from legacy path: "
-                        + "\(error)"
+                    "GameManager.manualSubstitution failed for players already resolved from the context: \(error)"
                 )
             }
         }
@@ -660,12 +620,12 @@ extension TimerView {
         }
     }  // MARK: - Player Status
 
-    // Activate/mark-temporarily-out/return-to-bench read/write Game via
-    // GameManager exclusively now (issue #60) - the Player.status write in
-    // each is a display-only mirror for SettingsView, which still reads
-    // Player.status directly until #62 rewires it onto TeamManager/Game;
-    // TimerView itself never reads these three fields back. Tracked as
-    // tech debt to remove in #62 alongside Player.status's deletion.
+    // Activate/mark-temporarily-out/return-to-bench, and substitution above,
+    // read/write Game exclusively via GameManager now (issues #60/#61) - no
+    // Player.status/currentPlayDuration/totalPlayTime mirror remains here.
+    // SettingsView, unrewired until a later ticket, still reads Player.status/
+    // currentPlayDuration/totalPlayTime directly and will show stale values
+    // for a player changed here until that ticket lands.
 
     func activatePlayer(_ player: Player) {
         guard let game = currentGame else { return }
@@ -674,31 +634,18 @@ extension TimerView {
         } catch {
             assertionFailure("GameManager.transition failed for a player already resolved from the context: \(error)")
         }
-
-        player.status = .active
-        player.activatedAtDate = Date()
-        player.currentPlayDuration = 0
         updateLiveActivity()
     }
 
     func markPlayerTemporarilyOut(_ player: Player) {
         guard let game = currentGame else { return }
-        let wasActive = gameManager.status(playerId: player.id, in: game) == .active
         try? gameManager.transition(playerId: player.id, to: .temporarilyOut, in: game)
-
-        if wasActive {
-            let timePlayedThisSegment = Date().timeIntervalSince(player.activatedAtDate)
-            player.totalPlayTime += timePlayedThisSegment
-        }
-        player.status = .temporarilyOut
         updateLiveActivity()
     }
 
     func returnPlayerToBench(_ player: Player) {
         guard let game = currentGame else { return }
         try? gameManager.transition(playerId: player.id, to: .benched, in: game)
-
-        player.status = .benched
         updateLiveActivity()
     }
 
@@ -726,6 +673,7 @@ extension TimerView {
     // MARK: - Live Activity Management
 
     private func startLiveActivity() {
+        guard let game = currentGame else { return }
         if #available(iOS 16.2, *) {
             let sessionName: String
             if let activeSession = sessions.first(where: { $0.isActive }) {
@@ -741,7 +689,7 @@ extension TimerView {
                 isRunning: timerViewModel?.isRunning ?? false,
                 timerStartDate: timerViewModel?.timerStartDate ?? Date(),
                 accumulatedTime: timerViewModel?.accumulatedTime ?? 0,
-                preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
+                preferredPlayTimeSeconds: game.preferredPlayTimeSeconds,
                 activePlayersCount: activePlayers.count,
                 benchedPlayersCount: benchedPlayers.count,
                 subOutPlayerName: activePlayers.first?.name,
@@ -752,12 +700,13 @@ extension TimerView {
     }
 
     private func updateLiveActivity() {
+        guard let game = currentGame else { return }
         if #available(iOS 16.2, *) {
             LiveActivityManager.shared.updateActivity(
                 isRunning: timerViewModel?.isRunning ?? false,
                 timerStartDate: timerViewModel?.timerStartDate ?? Date(),
                 accumulatedTime: timerViewModel?.accumulatedTime ?? 0,
-                preferredPlayTimeSeconds: configuration.preferredPlayTimeSeconds,
+                preferredPlayTimeSeconds: game.preferredPlayTimeSeconds,
                 activePlayersCount: activePlayers.count,
                 benchedPlayersCount: benchedPlayers.count,
                 subOutPlayerName: activePlayers.first?.name,
@@ -776,7 +725,8 @@ extension TimerView {
     private func scheduleOvertimeUpdate() {
         cancelOvertimeUpdate()
 
-        let preferredSeconds = configuration.preferredPlayTimeSeconds
+        guard let game = currentGame else { return }
+        let preferredSeconds = game.preferredPlayTimeSeconds
         guard preferredSeconds > 0 else { return }
 
         let accumulated = timerViewModel?.accumulatedTime ?? 0
@@ -797,8 +747,7 @@ extension TimerView {
 }
 
 /// Registers the full app schema (see `SchemaV2.models`) so `TimerView`'s
-/// `@Query`s for `OrderManager`/`Team`/`Game`/`Stint` don't crash at preview
-/// render time.
+/// `@Query`s for `Team`/`Game`/`Stint` don't crash at preview render time.
 private let previewSchemaModels: [any PersistentModel.Type] = [
     Player.self, AppConfiguration.self, Session.self, OrderManager.self,
     Team.self, RosterMembership.self, Game.self, Stint.self

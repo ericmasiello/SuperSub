@@ -7,10 +7,11 @@ The persisted model is mid-transition between two shapes:
   transition is complete; `Session`, `OrderManager`, and `AppConfiguration`
   are expected to be superseded by the dormant types below.
 - **Partially in use:** `Team`, `RosterMembership`, `Game`, `Stint` —
-  `TimerView`'s activate/mark-temporarily-out/return-to-bench actions and
-  Active/Bench/Temporarily-Out section rendering read/write these via
-  `GameManager` (#60); `RosterMembership` and Substitution's own bucket/Stint
-  bookkeeping remain unread/unwritten by app UI until later tickets.
+  `TimerView`'s activate/mark-temporarily-out/return-to-bench/substitution
+  actions, its Active/Bench/Temporarily-Out section rendering, and its Live
+  Activity feed all read/write these via `GameManager` (#60/#61);
+  `RosterMembership` remains unread/unwritten by app UI until a later
+  ticket rewires `SettingsView` onto `TeamManager`/`Team`.
 
 ```mermaid
 classDiagram
@@ -201,22 +202,10 @@ changing membership — `.temporarilyOut` is a no-op, since it's an unordered
 `Game` is only created when no open one exists for the app's `Team` — for a
 real upgrading user, migration (#59) only produces closed, historical
 `Game`s, so a fresh `Game` is bootstrapped once from each player's current
-`Player.status`/`activatedAtDate`/`OrderManager` order, carrying an
-in-progress rotation into the new model without resetting it.
-
-Substitution (still out of scope for a full rewire until #61) keeps its
-existing `Player.status`/`OrderManager` writes, but also calls
-`GameManager.manualSubstitution` in parallel (for both the automatic and
-manual flows - `TimerView` already resolves the specific outgoing/incoming
-pair before either reaches this call, so there's no separate need for
-`GameManager.automaticSubstitution`'s own pairing logic here), so the
-`Game`/`Stint` state this ticket's display path depends on doesn't drift out
-of sync with a substitution performed through the old path. `activatePlayer`/
-`markPlayerTemporarilyOut`/`returnPlayerToBench` similarly keep a
-display-only `Player.status` mirror write (never read back by `TimerView`)
-purely so `SettingsView` — unrewired until #62 — doesn't show stale status;
-this mirror is tracked as tech debt to remove alongside `Player.status`'s
-deletion in #62.
+`Player.status`/`activatedAtDate`, carrying an in-progress rotation into the
+new model without resetting it (#61 dropped this bootstrap's use of
+`OrderManager` to preserve a prior custom order, in step with removing
+`OrderManager` from the rest of the view — see below).
 
 ```mermaid
 sequenceDiagram
@@ -239,8 +228,77 @@ sequenceDiagram
     Section-->>Coach: renders - identical to today, no direct player.status/currentPlayDuration reads
 ```
 
-Substitution stays on its existing path for its own display logic here — see
-#61 for the follow-on ticket that rewires Substitution and the Live Activity
-feed fully onto `GameManager`, at which point `Player.status`/
-`currentPlayDuration`/`totalPlayTime`/`OrderManager` will have no remaining
-references anywhere in `TimerView`.
+As of #60, Substitution still kept its own `Player.status`/`OrderManager`
+writes in parallel with a `GameManager.manualSubstitution` mirror call — see
+below for #61, the follow-on ticket that removed that legacy path.
+
+## Substitution and Live Activity rewired onto GameManager (#61)
+
+Automatic and Manual Substitution now run through `GameManager` exclusively:
+both variants resolve an outgoing/incoming pair, then make a single
+`GameManager.manualSubstitution(outgoing:incoming:game:)` call — there's no
+separate need for `GameManager.automaticSubstitution`'s own pairing logic in
+`TimerView`, since it already resolves the specific pair itself before
+either flow reaches this call. `activatePlayer`/`markPlayerTemporarilyOut`/
+`returnPlayerToBench`/`performSubstitution`/`autoActivateInitialPlayersIfNeeded`
+no longer write `Player.status`/`currentPlayDuration`/`totalPlayTime`, and
+`OrderManager` is gone from `TimerView` entirely — every rotation read and
+write in the view now goes through `GameManager` against `Game`.
+
+`TimerView`'s Live Activity start/update call sites
+(`startLiveActivity`/`updateLiveActivity`/`scheduleOvertimeUpdate`) now read
+`preferredPlayTimeSeconds` from the open `Game` instead of
+`AppConfiguration`; the player counts/names they pass
+(`activePlayers.count`/`benchedPlayers.count`/`.first?.name`) were already
+`Game`-derived as of #60's `activePlayers`/`benchedPlayers` computed
+properties, so no further change was needed there.
+
+One reference to `Player.status` remains in `TimerView`, in
+`resolveOrCreateGame()`'s one-time legacy-bootstrap read (see #60 above) —
+it's the historical migration bridge, not an ongoing mirror, and both the
+`--uitesting` fixture (`SubTimerApp.setupTestData`) and `TimerViewUITests`
+depend on it seeding bucket membership correctly on a brand-new `Game`.
+
+Because `SettingsView` is unrewired until a later ticket and still reads/
+writes `Player.status`/`currentPlayDuration`/`totalPlayTime` directly, a
+player changed through `TimerView` now shows stale values on the Settings
+screen until that ticket lands — an accepted, temporary consequence of
+migrating screen-by-screen. The same applies to `preferredPlayTimeSeconds`:
+`Game`'s copy is a snapshot taken at creation time, so a mid-session change
+in `SettingsView` (still `AppConfiguration`-backed) won't reach the Live
+Activity until `SettingsView` is rewired onto `Team`.
+
+```mermaid
+sequenceDiagram
+    participant Coach
+    participant TimerView
+    participant GameManager
+    participant Stint
+    participant Game
+    participant LiveActivityManager
+    participant ActivityKit as ActivityKit / Dynamic Island
+
+    alt Automatic Substitution
+        Coach->>TimerView: tap Substitute
+        TimerView->>GameManager: resolve longest-serving Active + Next Up Bench player
+    else Manual Substitution
+        Coach->>TimerView: pick outgoing + incoming players
+        TimerView->>GameManager: manualSubstitution(outgoing, incoming, game)
+    end
+
+    GameManager->>GameManager: transition(outgoing, to: .benched, in: game)
+    GameManager->>Stint: close outgoing's Stint, add duration to total
+    GameManager->>GameManager: transition(incoming, to: .active, in: game)
+    GameManager->>Stint: open new Stint for incoming, starting at zero
+    GameManager->>Game: substitutionCount += 1
+    GameManager-->>TimerView: updated Game/Stint state
+
+    TimerView->>LiveActivityManager: update(team: Team, game: Game)
+    LiveActivityManager->>ActivityKit: push ContentState (shape unchanged)
+    ActivityKit-->>Coach: lock screen / Dynamic Island reflects the swap
+```
+
+After this ticket, `TimerView` has no remaining ongoing references to
+`Player.status`/`currentPlayDuration`/`totalPlayTime`/`OrderManager` —
+every rotation read and write in that view goes through `GameManager`, and
+every Live Activity read goes through `Game`.
