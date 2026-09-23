@@ -8,8 +8,10 @@ The persisted model is mid-transition between two shapes:
   are expected to be superseded by the dormant types below.
 - **Partially in use:** `Team`, `RosterMembership`, `Game`, `Stint` —
   `TimerView`'s activate/mark-temporarily-out/return-to-bench/substitution
-  actions, its Active/Bench/Temporarily-Out section rendering, and its Live
-  Activity feed all read/write these via `GameManager` (#60/#61);
+  actions and its Active/Bench/Temporarily-Out section rendering read/write
+  these via `GameManager` (#60/#61); its Live Activity feed reads `Game`
+  directly for settings like `preferredPlayTimeSeconds`, plus
+  `GameManager`-resolved bucket membership for player counts/names.
   `RosterMembership` remains unread/unwritten by app UI until a later
   ticket rewires `SettingsView` onto `TeamManager`/`Team`.
 

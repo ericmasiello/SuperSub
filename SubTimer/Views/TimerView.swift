@@ -747,7 +747,8 @@ extension TimerView {
 }
 
 /// Registers the full app schema (see `SchemaV2.models`) so `TimerView`'s
-/// `@Query`s for `Team`/`Game`/`Stint` don't crash at preview render time.
+/// `@Query`s for `Player`/`AppConfiguration`/`Session`/`Team`/`Game` don't
+/// crash at preview render time.
 private let previewSchemaModels: [any PersistentModel.Type] = [
     Player.self, AppConfiguration.self, Session.self, OrderManager.self,
     Team.self, RosterMembership.self, Game.self, Stint.self
